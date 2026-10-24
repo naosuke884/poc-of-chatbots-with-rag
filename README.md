@@ -61,6 +61,14 @@ uv run python -m rag_poc.docs   # ページごとのテキストを data/text/<d
 
 ページ番号は PDF の物理ページ（1 始まり）で数える。資料に印刷されたページ番号とは一致しない。
 
+## 索引の作成
+
+どちらも `data/index/` に結果を書き出す（コミットしない）。本編は左右の余白に縦書きの章見出しがあるので、テキストから除いてから使う（`rag_poc.docs.clean_pages`）。
+
+```sh
+uv run python -m rag_poc.pageindex_build   # PageIndex の目次ツリー（Claude Haiku 5.5）→ data/index/pageindex/<doc>.json
+```
+
 ## 評価セット
 
 `data/eval/questions.json`（コミットしない）。50問で、3資料を横断して検索する前提。

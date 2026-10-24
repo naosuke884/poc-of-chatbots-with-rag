@@ -4,7 +4,15 @@ version = "0.1.0"
 description = "ベクトル埋め込み方式と PageIndex 方式を比較する RAG チャットボットの PoC"
 requires-python = ">=3.11"
 dependencies = [
+    "anthropic>=2.3.0",
+    "fastapi>=0.162.0",
+    "openai>=3.37.0",
+    "pageindex>=0.4.4",
+    "pgvector>=0.5.1",
+    "psycopg[binary]>=3.3.6",
     "pymupdf>=1.26",
+    "python-dotenv>=1.2.4",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [build-system]
