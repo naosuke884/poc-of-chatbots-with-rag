@@ -12,8 +12,9 @@ RAG（検索拡張生成）を前提としたチャットボットの PoC。同�
 | 対象資料 | IPA「[中小企業の情報セキュリティ対策ガイドライン第4.0版](https://www.ipa.go.jp/security/guide/sme/about.html)」の本編・付録5（情報セキュリティ関連規程サンプル）・付録3（自社診断） |
 | 回答生成 LLM | Claude Sonnet 5.5（両方式共通）。PageIndex の索引作成は Claude Haiku 5.5 |
 | 埋め込み | OpenAI text-embedding-3-large |
+| 並べ替え（追加検証） | TypeSafe AI の Jev（`jev-latest`、キーは `TYPESAFE_API_KEY`） |
 | ベクトル DB | PostgreSQL + pgvector |
-| 評価 | 50問（正解ページ番号付き）、LLM による採点。精度・根拠ページの一致率・速度・コスト・構築の手間を計測して比較する |
+| 評価 | 148問（正解ページ番号付き）、LLM による採点。精度・根拠ページの一致率・速度・コスト・構築の手間を計測して比較する |
 | 予算 | API 利用料は合計 $100 まで |
 
 ## 構成（予定）
@@ -73,7 +74,7 @@ uv run python -m rag_poc.vector_build      # チャンク分割・埋め込み�
 ## 質問応答
 
 ```sh
-uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector / vector_page / vector_page_doc も可)
+uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector / vector_page / vector_page_doc / vector_jev も可)
 uv run uvicorn rag_poc.api:app --host 0.0.0.0 --port 8100        # 質問応答 API
 cd web && npm install && npm run dev                             # Web UI(http://localhost:5180、/api は 8100 へ転送)
 ```

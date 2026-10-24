@@ -11,6 +11,7 @@ ANSWER_MODEL = "claude-sonnet-5-5"
 INDEX_MODEL = "claude-haiku-5-5"
 JUDGE_MODEL = "claude-opus-5-5"
 EMBED_MODEL = "text-embedding-3-large"
+RERANK_MODEL = "jev-latest"  # TypeSafe AI の Jev。ベクトル検索の並べ替えに使う
 
 # 100 万トークンあたりの米ドル(入力, 出力, キャッシュ読み込み)
 PRICES = {
@@ -18,6 +19,7 @@ PRICES = {
     "claude-haiku-5-5": (0.10, 0.50, 0.01),
     "claude-opus-5-5": (4.00, 20.00, 0.20),
     "text-embedding-3-large": (0.13, 0.0, 0.0),
+    "jev-latest": (0.042, 0.0, 0.0),  # 出力は無料。公開の料金表がなく、紹介記事の値
 }
 
 
@@ -78,3 +80,15 @@ def openai_client():
 
         _openai = openai.OpenAI()
     return _openai
+
+
+_typesafe = None
+
+
+def typesafe_client():
+    global _typesafe
+    if _typesafe is None:
+        from typesafe_sdk import TypeSafeClient
+
+        _typesafe = TypeSafeClient()
+    return _typesafe
