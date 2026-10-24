@@ -100,3 +100,11 @@ API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}
 - `evidence`: 正解の根拠のページと、そのページにある文言。`unanswerable` は空
 
 `uv run python -m rag_poc.evalset` で、各 `quote` が指定したページの本文にあるかを確かめる。
+
+## 計測
+
+```sh
+uv run python -m rag_poc.evaluate pageindex   # 全問を実行・採点し data/eval/results/pageindex.json に保存(vector も同様)
+```
+
+質問は 1 問ずつ順に実行する。回答の正しさは Claude Opus 5.5 が正解と比べて correct / partial / incorrect で採点し、答えのない質問は「記載がない」と答えれば correct とする。あわせて、正解の根拠ページを検索で取得できたか・回答の根拠に挙げたか、処理時間、トークン数、料金を記録する。
