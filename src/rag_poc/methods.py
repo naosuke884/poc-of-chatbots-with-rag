@@ -10,6 +10,7 @@ METHODS = {
     "vector_page": "ベクトル(ページ拡張)",
     "vector_page_doc": "ベクトル(ページ拡張+資料枠)",
     "vector_jev": "ベクトル(Jev で並べ替え)",
+    "vector_haiku": "ベクトル(Haiku で並べ替え)",
     "pageindex": "PageIndex",
 }
 
@@ -24,6 +25,8 @@ def pipeline(method: str) -> Callable[[str], Result]:
         from rag_poc.vector_rag import ask_page_doc as ask
     elif method == "vector_jev":
         from rag_poc.vector_rag import ask_jev as ask
+    elif method == "vector_haiku":
+        from rag_poc.vector_rag import ask_haiku as ask
     elif method == "pageindex":
         from rag_poc.pageindex_rag import ask
     else:

@@ -17,7 +17,7 @@ app = FastAPI(title="rag-poc")
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
-    method: Literal["vector", "vector_page", "vector_page_doc", "vector_jev", "pageindex"]
+    method: Literal["vector", "vector_page", "vector_page_doc", "vector_jev", "vector_haiku", "pageindex"]
 
 
 @app.get("/api/docs")

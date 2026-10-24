@@ -6,6 +6,7 @@ ask_page_doc(資料ごとの枠)は、ページ拡張に加えて、全体の上
 似た記述が他の資料にあるとき、本来の資料のチャンクが全体の上位から漏れるのを防ぐ。
 ask_jev(並べ替え)は、近いチャンクを RERANK_CANDIDATES 件取り、Jev(RERANK_MODEL)に各チャンクに答えが
 書かれているかを判定させて、その確率の高い順に TOP_K 件を選んでからページ全体に広げる。
+ask_haiku は、同じ並べ替えを Claude Haiku 5.5(INDEX_MODEL)に 0〜10 の点数を付けさせて行う。Jev と比べるための形。
 
 埋め込みは 3072 次元で、pgvector の vector 型の索引(HNSW / IVFFlat)は 2000 次元までしか張れない。
 チャンクが数百件なので、索引なしの全件走査で十分速い。
@@ -15,15 +16,25 @@ import time
 from functools import cache
 
 import numpy as np
+from pydantic import BaseModel
 
 from rag_poc.answer import Passage, Result, generate, unique_pages
 from rag_poc.docs import DOCS_BY_ID, clean_pages
-from rag_poc.llm import RERANK_MODEL, Usage, typesafe_client
+from rag_poc.llm import INDEX_MODEL, RERANK_MODEL, Usage, anthropic_client, typesafe_client
 from rag_poc.vector_build import connect, embed
 
 TOP_K = 8
 PER_DOC = 2
 RERANK_CANDIDATES = 30
+HAIKU_RERANK_EFFORT = "low"
+
+HAIKU_RERANK_SYSTEM = """質問と、検索で取った抜粋の一覧が与えられます。各抜粋に質問の答えが書かれているかを 0〜10 の点数で判定してください。
+
+- 10: 質問の答えがそのまま書かれている
+- 5: 答えの一部、または答えを探す手がかりが書かれている
+- 0: 質問と関係がない
+
+すべての抜粋に点数を付け、id と点数の組で返してください。"""
 
 
 def search(question: str, usage: Usage, k: int = TOP_K, per_doc: int = 0) -> list[Passage]:
@@ -60,6 +71,33 @@ def rerank(question: str, passages: list[Passage], usage: Usage, k: int = TOP_K)
     return [passages[i] for i in order], [scores[i] for i in order]
 
 
+class _Score(BaseModel):
+    id: int
+    score: int
+
+
+class _Scores(BaseModel):
+    scores: list[_Score]
+
+
+def rerank_haiku(question: str, passages: list[Passage], usage: Usage, k: int = TOP_K) -> tuple[list[Passage], list[float]]:
+    """rerank と同じ並べ替えを Haiku で行う。点数のない抜粋は 0 点とし、同じ点数なら元の順。"""
+    listing = "\n\n".join(f'<passage id="{i}">\n{p.text}\n</passage>' for i, p in enumerate(passages))
+    response = anthropic_client().messages.parse(
+        model=INDEX_MODEL,
+        max_tokens=16000,
+        system=HAIKU_RERANK_SYSTEM,
+        output_config={"effort": HAIKU_RERANK_EFFORT},
+        messages=[{"role": "user", "content": f"<passages>\n{listing}\n</passages>\n\n質問: {question}"}],
+        output_format=_Scores,
+    )
+    usage.add_message(INDEX_MODEL, response.usage)
+    given = {s.id: s.score / 10 for s in response.parsed_output.scores} if response.parsed_output else {}
+    scores = [given.get(i, 0.0) for i in range(len(passages))]
+    order = sorted(range(len(passages)), key=lambda i: -scores[i])[:k]
+    return [passages[i] for i in order], [scores[i] for i in order]
+
+
 @cache
 def _pages(doc_id: str) -> list[str]:
     return clean_pages(DOCS_BY_ID[doc_id])
@@ -69,12 +107,15 @@ def expand_to_pages(passages: list[Passage]) -> list[Passage]:
     return [Passage(doc=p["doc"], page=p["page"], text=_pages(p["doc"])[p["page"] - 1]) for p in unique_pages(passages)]
 
 
-def ask(question: str, expand: bool = False, per_doc: int = 0, jev: bool = False, method: str = "vector") -> Result:
+def ask(question: str, expand: bool = False, per_doc: int = 0, jev: bool = False, haiku: bool = False, method: str = "vector") -> Result:
     usage = Usage()
     detail = {}
     started = time.perf_counter()
     if jev:
         passages, scores = rerank(question, search(question, usage, k=RERANK_CANDIDATES), usage)
+        detail["rerank_scores"] = scores
+    elif haiku:
+        passages, scores = rerank_haiku(question, search(question, usage, k=RERANK_CANDIDATES), usage)
         detail["rerank_scores"] = scores
     else:
         passages = search(question, usage, per_doc=per_doc)
@@ -107,3 +148,7 @@ def ask_page_doc(question: str) -> Result:
 
 def ask_jev(question: str) -> Result:
     return ask(question, expand=True, jev=True, method="vector_jev")
+
+
+def ask_haiku(question: str) -> Result:
+    return ask(question, expand=True, haiku=True, method="vector_haiku")
