@@ -105,6 +105,9 @@ API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}
 
 ```sh
 uv run python -m rag_poc.evaluate pageindex   # 全問を実行・採点し data/eval/results/pageindex.json に保存(vector も同様)
+uv run python -m rag_poc.compare              # 両方式の集計値を Markdown の表で出す
 ```
 
 質問は 1 問ずつ順に実行する。回答の正しさは Claude Opus 5.5 が正解と比べて correct / partial / incorrect で採点し、答えのない質問は「記載がない」と答えれば correct とする。あわせて、正解の根拠ページを検索で取得できたか・回答の根拠に挙げたか、処理時間、トークン数、料金を記録する。
+
+比較の結果は [docs/comparison.md](docs/comparison.md)、採用方針と本実装に向けた課題は [docs/report.md](docs/report.md) にまとめている。
