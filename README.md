@@ -73,7 +73,7 @@ uv run python -m rag_poc.vector_build      # チャンク分割・埋め込み�
 ## 質問応答
 
 ```sh
-uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector も可)
+uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector / vector_page も可)
 uv run uvicorn rag_poc.api:app --host 0.0.0.0 --port 8100        # 質問応答 API
 cd web && npm install && npm run dev                             # Web UI(http://localhost:5180、/api は 8100 へ転送)
 ```

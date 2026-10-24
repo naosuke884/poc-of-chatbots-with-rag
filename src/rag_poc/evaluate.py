@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from rag_poc import evalset
 from rag_poc.docs import DATA_DIR
 from rag_poc.llm import JUDGE_MODEL, Usage, anthropic_client
+from rag_poc.methods import METHODS, pipeline
 
 RESULTS_DIR = DATA_DIR / "eval" / "results"
 SCORES = {"correct": 1.0, "partial": 0.5, "incorrect": 0.0}
@@ -60,10 +61,7 @@ def page_recall(gold: list[dict], pages: list[dict]) -> float | None:
 
 
 def run(method: str, ids: list[str] | None = None) -> list[dict]:
-    if method == "vector":
-        from rag_poc.vector_rag import ask
-    else:
-        from rag_poc.pageindex_rag import ask
+    ask = pipeline(method)
 
     questions = [q for q in evalset.load() if not ids or q["id"] in ids]
     rows = []
@@ -125,7 +123,7 @@ def summarize(rows: list[dict]) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("method", choices=["vector", "pageindex"])
+    parser.add_argument("method", choices=list(METHODS))
     parser.add_argument("--ids", help="カンマ区切りの質問 id(省略時は全問)")
     args = parser.parse_args()
     ids = args.ids.split(",") if args.ids else None

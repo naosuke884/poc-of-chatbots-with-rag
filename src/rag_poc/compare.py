@@ -8,8 +8,8 @@
 import json
 
 from rag_poc.evaluate import RESULTS_DIR
+from rag_poc.methods import METHODS
 
-METHODS = [("vector", "ベクトル"), ("pageindex", "PageIndex")]
 TYPE_LABELS = {"fact": "事実の参照", "multi": "複数箇所", "table": "数値・表", "unanswerable": "答えなし"}
 DOC_LABELS = {"main": "本編", "app5": "付録5", "app3": "付録3"}
 
@@ -24,8 +24,8 @@ def _pct(x):
 
 
 def table() -> str:
-    data = {m: load(m) for m, _ in METHODS}
-    cols = [(m, label) for m, label in METHODS if data[m]]
+    data = {m: load(m) for m in METHODS}
+    cols = [(m, label) for m, label in METHODS.items() if data[m]]
     s = {m: data[m]["summary"] for m, _ in cols}
 
     def row(name, f):

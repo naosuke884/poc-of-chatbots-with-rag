@@ -7,17 +7,15 @@ import argparse
 import json
 import sys
 
+from rag_poc.methods import METHODS, pipeline
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--method", choices=["vector", "pageindex"], required=True)
+    parser.add_argument("--method", choices=list(METHODS), required=True)
     parser.add_argument("question")
     args = parser.parse_args()
-    if args.method == "vector":
-        from rag_poc.vector_rag import ask
-    else:
-        from rag_poc.pageindex_rag import ask
-    json.dump(ask(args.question).to_dict(), sys.stdout, ensure_ascii=False, indent=2)
+    json.dump(pipeline(args.method)(args.question).to_dict(), sys.stdout, ensure_ascii=False, indent=2)
     print()
 
 
