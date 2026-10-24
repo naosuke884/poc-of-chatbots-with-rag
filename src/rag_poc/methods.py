@@ -8,6 +8,7 @@ from rag_poc.answer import Result
 METHODS = {
     "vector": "ベクトル",
     "vector_page": "ベクトル(ページ拡張)",
+    "vector_page_doc": "ベクトル(ページ拡張+資料枠)",
     "pageindex": "PageIndex",
 }
 
@@ -18,6 +19,8 @@ def pipeline(method: str) -> Callable[[str], Result]:
         from rag_poc.vector_rag import ask
     elif method == "vector_page":
         from rag_poc.vector_rag import ask_page as ask
+    elif method == "vector_page_doc":
+        from rag_poc.vector_rag import ask_page_doc as ask
     elif method == "pageindex":
         from rag_poc.pageindex_rag import ask
     else:
