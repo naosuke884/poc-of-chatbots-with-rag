@@ -11,7 +11,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from rag_poc.docs import DATA_DIR, DOCS_BY_ID, extract_pages
+from rag_poc.docs import DATA_DIR, DOCS, extract_pages
 
 EVAL_PATH = DATA_DIR / "eval" / "questions.json"
 TYPES = {"fact", "multi", "table", "unanswerable"}
@@ -28,7 +28,7 @@ def _normalize(text: str) -> str:
 def verify(questions: list[dict]) -> list[str]:
     """問題点を文字列のリストで返す。空なら問題なし。"""
     errors = []
-    pages = {doc_id: [_normalize(p) for p in extract_pages(doc)] for doc_id, doc in DOCS_BY_ID.items()}
+    pages = {doc.id: [_normalize(p) for p in extract_pages(doc)] for doc in DOCS}
 
     ids = [q["id"] for q in questions]
     for dup in [i for i, n in Counter(ids).items() if n > 1]:

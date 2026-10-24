@@ -30,7 +30,18 @@ DOCS = [
     Doc("app5", "付録5 情報セキュリティ関連規程(サンプル)", "付録5", "sme_guideline_v4.0_app_5.pdf"),
     Doc("app3", "付録3 5分でできる!情報セキュリティ自社診断", "付録3", "sme_guideline_v4.0_app_3.pdf"),
 ]
-DOCS_BY_ID = {d.id: d for d in DOCS}
+# 資料を増やしたときの伸び方を測るためだけに使う資料(評価セット・画面の対象外)。data/extra/ に置く
+EXTRA_DOCS = [
+    Doc("app1", "付録1 中小企業のためのセキュリティ人材の確保・育成の実践ガイドブック", "付録1", "extra/sme_guideline_v4.0_app_1.pdf"),
+    Doc("app7", "付録7 中小企業のためのクラウドサービス安全利用の手引き", "付録7", "extra/sme_guideline_v4.0_app_7.pdf"),
+    Doc("app8", "付録8 中小企業のためのセキュリティインシデント対応の手引き", "付録8", "extra/sme_guideline_v4.0_app_8.pdf"),
+    Doc("jishashindan", "5分でできる!情報セキュリティ自社診断(解説編)", "自社診断 解説編", "extra/5fundedekiru!jouhousecurityjishashindan(kaisetsuhen)_r12.pdf"),
+    Doc("6kajou", "情報セキュリティ6か条(解説編)", "6か条 解説編", "extra/jouhousecurity6kajou(kaisetsuhen)_r16.pdf"),
+    Doc("cloud_slides", "「中小企業のためのクラウドサービス安全利用の手引き」説明資料", "クラウド手引き 説明資料", "extra/sme_guideline_v4.0_app_cloudservice.pdf"),
+    Doc("incident_slides", "「中小企業のためのセキュリティインシデント対応の手引き」説明資料", "インシデント手引き 説明資料", "extra/sme_guideline_v4.0_app_incidenttebiki.pdf"),
+    Doc("guideline_slides", "「中小企業の情報セキュリティ対策ガイドライン」説明資料", "ガイドライン 説明資料", "extra/sme_guideline_v4.0_setsumeisiryou.pdf"),
+]
+DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS}
 
 
 def extract_pages(doc: Doc) -> list[str]:

@@ -15,7 +15,7 @@ import time
 import psycopg
 from pgvector.psycopg import register_vector
 
-from rag_poc.docs import DATA_DIR, DOCS, clean_pages
+from rag_poc.docs import DATA_DIR, DOCS, Doc, clean_pages
 from rag_poc.llm import EMBED_MODEL, Usage, openai_client
 
 CHUNK_CHARS = 600
@@ -68,9 +68,9 @@ def split_page(text: str) -> list[str]:
     return chunks
 
 
-def make_chunks() -> list[dict]:
+def make_chunks(docs: list[Doc] = DOCS) -> list[dict]:
     chunks = []
-    for doc in DOCS:
+    for doc in docs:
         for page, text in enumerate(clean_pages(doc), start=1):
             for seq, chunk in enumerate(c for c in split_page(text) if len(c) >= MIN_CHARS):
                 chunks.append({"doc": doc.id, "page": page, "seq": seq, "text": chunk})

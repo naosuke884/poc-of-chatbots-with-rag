@@ -109,6 +109,7 @@ API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}
 uv run python -m rag_poc.evaluate pageindex   # 全問を実行・採点し data/eval/results/pageindex.json に保存(vector も同様)
 uv run python -m rag_poc.evaluate pageindex --rejudge   # 保存済みの回答を採点し直す
 uv run python -m rag_poc.compare              # 各方式の集計値を Markdown の表で出す
+uv run python -m rag_poc.scale                # 資料を増やしたときの検索の時間・料金を測る(data/extra/ に追加資料が要る)
 ```
 
 質問は 1 問ずつ順に実行する。回答の正しさは Claude Opus 5.5 が正解・正解の根拠ページの本文と比べて correct / partial / incorrect で採点し、答えのない質問は「記載がない」と答えれば correct とする。採点は 2 回行い、判定が食い違った問題は低いほうを採って `needs_review` を付ける(人が見る対象)。あわせて、正解の根拠ページを検索で取得できたか・回答の根拠に挙げたか、処理時間、トークン数、料金を記録する。
