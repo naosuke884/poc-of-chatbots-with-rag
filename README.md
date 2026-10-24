@@ -79,7 +79,7 @@ uv run uvicorn rag_poc.api:app --host 0.0.0.0 --port 8100        # 質問応答 
 cd web && npm install && npm run dev                             # Web UI(http://localhost:5180、/api は 8100 へ転送)
 ```
 
-API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}`）で、回答・根拠ページ・検索で取得したページ・処理時間・トークン数・料金を返す。Web UI は同じ質問を両方式に並列で投げ、結果を左右に並べて表示する。
+API は `POST /api/ask`（`{"question": "…", "method": "…"}`。method は `src/rag_poc/methods.py` の方式 id）で、回答・根拠ページ・検索で取得したページ・処理時間・トークン数・料金を返す。Web UI はチェックボックスで選んだ方式に同じ質問を並列で投げ、結果を列に並べて表示する（最初は Jev で並べ替える方式と PageIndex を選んだ状態）。
 
 ## 評価セット
 

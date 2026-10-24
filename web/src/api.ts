@@ -1,4 +1,4 @@
-export type Method = "vector" | "pageindex";
+export type Method = "vector" | "vector_page" | "vector_page_doc" | "vector_jev" | "vector_haiku" | "pageindex";
 
 export interface DocInfo {
   id: string;
@@ -33,7 +33,7 @@ export interface AskResponse {
     tokens: Record<string, { input: number; output: number; cache_read: number }>;
     cost_usd: number;
   };
-  detail: { reasoning?: string; nodes?: PageIndexNode[] };
+  detail: { reasoning?: string; nodes?: PageIndexNode[]; rerank_scores?: number[] };
 }
 
 // FastAPI のエラー(502 は文字列、422 は配列)をメッセージにする

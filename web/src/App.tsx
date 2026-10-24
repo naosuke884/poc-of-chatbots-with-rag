@@ -8,18 +8,24 @@ export type ColumnState =
   | { status: "error"; message: string }
   | { status: "done"; result: AskResponse };
 
-const METHODS: { id: Method; label: string }[] = [
-  { id: "vector", label: "ベクトル検索" },
-  { id: "pageindex", label: "PageIndex" },
+// 表示名は src/rag_poc/methods.py の METHODS と同じにする。default は最初から選ばれている方式
+const METHODS: { id: Method; label: string; default: boolean }[] = [
+  { id: "vector", label: "ベクトル", default: false },
+  { id: "vector_page", label: "ベクトル(ページ拡張)", default: false },
+  { id: "vector_page_doc", label: "ベクトル(ページ拡張+資料枠)", default: false },
+  { id: "vector_jev", label: "ベクトル(Jev で並べ替え)", default: true },
+  { id: "vector_haiku", label: "ベクトル(Haiku で並べ替え)", default: false },
+  { id: "pageindex", label: "PageIndex", default: true },
 ];
+
+function byMethod<T>(f: (m: (typeof METHODS)[number]) => T): Record<Method, T> {
+  return Object.fromEntries(METHODS.map((m) => [m.id, f(m)])) as Record<Method, T>;
+}
 
 export default function App() {
   const [question, setQuestion] = useState("");
-  const [enabled, setEnabled] = useState<Record<Method, boolean>>({ vector: true, pageindex: true });
-  const [states, setStates] = useState<Record<Method, ColumnState>>({
-    vector: { status: "idle" },
-    pageindex: { status: "idle" },
-  });
+  const [enabled, setEnabled] = useState(() => byMethod((m) => m.default));
+  const [states, setStates] = useState(() => byMethod<ColumnState>(() => ({ status: "idle" })));
   const [docTitles, setDocTitles] = useState<Record<string, string>>({});
   const abortRef = useRef<AbortController | null>(null);
 
@@ -62,7 +68,7 @@ export default function App() {
     <div className="app">
       <header>
         <h1>RAG 比較 PoC</h1>
-        <p className="subtitle">同じ質問をベクトル検索と PageIndex の両方で回答し、結果を並べて比較します。</p>
+        <p className="subtitle">同じ質問を選んだ方式で回答し、結果を並べて比較します。</p>
       </header>
 
       <form className="ask-form" onSubmit={submit}>
