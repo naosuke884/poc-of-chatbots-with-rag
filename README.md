@@ -69,6 +69,16 @@ uv run python -m rag_poc.docs   # ページごとのテキストを data/text/<d
 uv run python -m rag_poc.pageindex_build   # PageIndex の目次ツリー（Claude Haiku 5.5）→ data/index/pageindex/<doc>.json
 ```
 
+## 質問応答
+
+```sh
+uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector も可)
+uv run uvicorn rag_poc.api:app --host 0.0.0.0 --port 8100        # 質問応答 API
+cd web && npm install && npm run dev                             # Web UI(http://localhost:5180、/api は 8100 へ転送)
+```
+
+API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}`）で、回答・根拠ページ・検索で取得したページ・処理時間・トークン数・料金を返す。Web UI は同じ質問を両方式に並列で投げ、結果を左右に並べて表示する。
+
 ## 評価セット
 
 `data/eval/questions.json`（コミットしない）。50問で、3資料を横断して検索する前提。

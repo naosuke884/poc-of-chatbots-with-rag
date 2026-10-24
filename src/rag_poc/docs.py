@@ -15,6 +15,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 class Doc:
     id: str
     title: str
+    label: str  # 画面などに出す短い名前
     filename: str
     # 左右の余白にある章見出し(縦書きの見出し)の幅。この範囲に収まるテキストは本文から除く
     side_margin: float = 0
@@ -25,9 +26,9 @@ class Doc:
 
 
 DOCS = [
-    Doc("main", "中小企業の情報セキュリティ対策ガイドライン第4.0版 本編", "sme_guideline_v4.0.pdf", side_margin=42),
-    Doc("app5", "付録5 情報セキュリティ関連規程(サンプル)", "sme_guideline_v4.0_app_5.pdf"),
-    Doc("app3", "付録3 5分でできる!情報セキュリティ自社診断", "sme_guideline_v4.0_app_3.pdf"),
+    Doc("main", "中小企業の情報セキュリティ対策ガイドライン第4.0版 本編", "本編", "sme_guideline_v4.0.pdf", side_margin=42),
+    Doc("app5", "付録5 情報セキュリティ関連規程(サンプル)", "付録5", "sme_guideline_v4.0_app_5.pdf"),
+    Doc("app3", "付録3 5分でできる!情報セキュリティ自社診断", "付録3", "sme_guideline_v4.0_app_3.pdf"),
 ]
 DOCS_BY_ID = {d.id: d for d in DOCS}
 
