@@ -90,10 +90,16 @@ def page_recall(gold: list[dict], pages: list[dict]) -> float | None:
 
 
 def run(method: str, ids: list[str] | None = None) -> list[dict]:
+    """1 問ごとに途中経過を <method>.progress.json に書く。途中で止まったら、次の実行で続きから行う。"""
     ask = pipeline(method)
+    progress = RESULTS_DIR / f"{method}.progress.json"
+    rows = json.loads(progress.read_text(encoding="utf-8")) if progress.exists() and not ids else []
+    done = {r["id"] for r in rows}
+    if done:
+        print(f"{len(done)} 問は途中経過から再開する", flush=True)
 
-    questions = [q for q in evalset.load() if not ids or q["id"] in ids]
-    rows = []
+    questions = [q for q in evalset.load() if (not ids or q["id"] in ids) and q["id"] not in done]
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     for q in questions:
         result = ask(q["question"]).to_dict()
         g = grade(q, result["answer"])
@@ -108,6 +114,8 @@ def run(method: str, ids: list[str] | None = None) -> list[dict]:
                 "result": result,
             }
         )
+        if not ids:
+            progress.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
         print(f"{q['id']} {g['verdict']:9}{' review' if g['needs_review'] else ''} retrieved={rows[-1]['retrieved_recall']} cited={rows[-1]['cited_recall']} {result['total_ms']}ms ${result['usage']['cost_usd']:.4f}", flush=True)
     return rows
 
@@ -177,6 +185,7 @@ def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     name = args.method if not ids else f"{args.method}_partial"
     (RESULTS_DIR / f"{name}.json").write_text(json.dumps({"method": args.method, "summary": summary, "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (RESULTS_DIR / f"{args.method}.progress.json").unlink(missing_ok=True)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
