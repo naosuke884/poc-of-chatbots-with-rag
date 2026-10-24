@@ -82,7 +82,7 @@ API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}
 
 ## 評価セット
 
-`data/eval/questions.json`（コミットしない）。50問で、3資料を横断して検索する前提。
+`data/eval/questions.json`（コミットしない）。148問で、3資料を横断して検索する前提。q01〜q50 は人が作った問題、q51 以降は `rag_poc.evalgen` で LLM が作って点検した問題（人は確認していない）。
 
 ```json
 {
@@ -95,11 +95,13 @@ API は `POST /api/ask`（`{"question": "…", "method": "vector" | "pageindex"}
 }
 ```
 
-- `doc`: 問題を作った資料。配分は `main` 30・`app5` 10・`app3` 10
+- `doc`: 問題を作った資料。配分は `main` 75・`app5` 48・`app3` 25
 - `type`: `fact`（事実の参照）/ `multi`（複数の節・資料にまたがる）/ `table`（数値・表の読み取り）/ `unanswerable`（資料に答えがない）
 - `evidence`: 正解の根拠のページと、そのページにある文言。`unanswerable` は空
 
 `uv run python -m rag_poc.evalset` で、各 `quote` が指定したページの本文にあるかを確かめる。
+
+`uv run python -m rag_poc.evalgen` は、資料の 2 ページずつから利用者がしそうな言い回しの問題を Claude Opus 5.5 に下書きさせ、3 資料の全文と照らして正解が本文どおりか・答えが 1 つに決まるか（答えのない質問はどの資料にも答えがないか）を点検し、通った問題を元の 50 問（`questions_50.json` に退避）に足す。下書きと点検の結果は `data/eval/drafts.json` に残る。
 
 ## 計測
 
