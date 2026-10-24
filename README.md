@@ -67,6 +67,7 @@ uv run python -m rag_poc.docs   # ページごとのテキストを data/text/<d
 
 ```sh
 uv run python -m rag_poc.pageindex_build   # PageIndex の目次ツリー（Claude Haiku 5.5）→ data/index/pageindex/<doc>.json
+uv run python -m rag_poc.vector_build      # チャンク分割・埋め込み（text-embedding-3-large）→ PostgreSQL の chunks テーブル
 ```
 
 ## 質問応答
