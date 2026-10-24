@@ -33,6 +33,51 @@ dev container（`~/dev-containers/poc-of-chatbots-with-rag/`）で開発する�
 
 API キーは `.env.example` をコピーした `.env` に書く（`.env` はコミットしない）。
 
+Python のパッケージは [uv](https://docs.astral.sh/uv/) で管理する。依存は `pyproject.toml`、固定したバージョンは `uv.lock` にある。仮想環境は `UV_PROJECT_ENVIRONMENT` が指す `/home/dev-container/.venv` を使う。
+
+```sh
+uv sync                  # uv.lock どおりに仮想環境へ入れる
+uv add <package>         # 依存を追加する（uv.lock も更新される）
+uv run python -m rag_poc.docs
+```
+
 ## 資料の扱い
 
 このリポジトリは公開リポジトリのため、検証に使う資料（PDF・Word）はコミットしない。`data/` に置き、`.gitignore` で除外している。
+
+付録5 は Word で配布されているので、LibreOffice で PDF に変換して使う。
+
+```sh
+soffice --headless --convert-to pdf --outdir data data/sme_guideline_v4.0_app_5.docx
+uv sync
+uv run python -m rag_poc.docs   # ページごとのテキストを data/text/<doc>/p001.txt に書き出す
+```
+
+| doc | ファイル |
+|---|---|
+| `main` | `sme_guideline_v4.0.pdf`（本編） |
+| `app5` | `sme_guideline_v4.0_app_5.pdf`（付録5、docx から変換） |
+| `app3` | `sme_guideline_v4.0_app_3.pdf`（付録3） |
+
+ページ番号は PDF の物理ページ（1 始まり）で数える。資料に印刷されたページ番号とは一致しない。
+
+## 評価セット
+
+`data/eval/questions.json`（コミットしない）。50問で、3資料を横断して検索する前提。
+
+```json
+{
+  "id": "q01",
+  "doc": "main",
+  "type": "fact",
+  "question": "…",
+  "answer": "…",
+  "evidence": [{"doc": "main", "page": 70, "quote": "…"}]
+}
+```
+
+- `doc`: 問題を作った資料。配分は `main` 30・`app5` 10・`app3` 10
+- `type`: `fact`（事実の参照）/ `multi`（複数の節・資料にまたがる）/ `table`（数値・表の読み取り）/ `unanswerable`（資料に答えがない）
+- `evidence`: 正解の根拠のページと、そのページにある文言。`unanswerable` は空
+
+`uv run python -m rag_poc.evalset` で、各 `quote` が指定したページの本文にあるかを確かめる。
