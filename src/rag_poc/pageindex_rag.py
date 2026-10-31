@@ -62,7 +62,8 @@ def _nodes() -> dict[str, dict]:
 
 
 @cache
-def _trees_text() -> str:
+def _trees_text(doc_ids: tuple[str, ...] | None = None) -> str:
+    """目次ツリーの文字列。doc_ids を渡すとその資料だけにする。"""
     lines = []
 
     def walk(doc_id, items, depth):
@@ -71,7 +72,7 @@ def _trees_text() -> str:
             lines.append(f"{'  ' * depth}- [{doc_id}:{n['node_id']}] {n['title']} (p{n['start_index']}-{n['end_index']}): {summary}")
             walk(doc_id, n.get("nodes", []), depth + 1)
 
-    for doc in CORPUS_DOCS:
+    for doc in CORPUS_DOCS if doc_ids is None else [d for d in CORPUS_DOCS if d.id in doc_ids]:
         lines.append(f'<tree doc="{doc.id}" title="{doc.title}">')
         walk(doc.id, load_tree(doc.id)["structure"], 0)
         lines.append("</tree>")
@@ -83,11 +84,19 @@ def _pages(doc_id: str) -> list[str]:
     return clean_pages(next(d for d in CORPUS_DOCS if d.id == doc_id))
 
 
-def select_nodes(question: str, usage: Usage) -> _Selection:
+def select_nodes(question: str, usage: Usage, doc_ids: tuple[str, ...] | None = None) -> _Selection:
+    """読む節を LLM に選ばせる。doc_ids を渡すとその資料のツリーだけを渡す。
+
+    全資料のツリーは毎回同じなのでキャッシュする。資料を絞ったツリーは質問ごとに変わり、キャッシュしても読まれないので付けない。
+    """
+    n = len(CORPUS_DOCS) if doc_ids is None else len(doc_ids)
+    system = {"type": "text", "text": SELECT_SYSTEM.format(n=n, trees=_trees_text(doc_ids))}
+    if doc_ids is None:
+        system["cache_control"] = {"type": "ephemeral"}
     response = anthropic_client().messages.parse(
         model=ANSWER_MODEL,
         max_tokens=16000,
-        system=[{"type": "text", "text": SELECT_SYSTEM.format(n=len(CORPUS_DOCS), trees=_trees_text()), "cache_control": {"type": "ephemeral"}}],
+        system=[system],
         output_config={"effort": SELECT_EFFORT},
         messages=[{"role": "user", "content": f"質問: {question}"}],
         output_format=_Selection,
