@@ -114,6 +114,8 @@ uv run python -m rag_poc.compare              # 各方式の集計値を Markdow
 uv run python -m rag_poc.scale                # 資料を増やしたときの検索の時間・料金を測る(data/extra/ に追加資料が要る)
 uv run python -m rag_poc.evalgold             # 追加の 8 冊にも答えがあるページを正解に補う → data/eval/alt_evidence_11.json
 RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev   # 11 冊で検索だけを流し、正解ページの取得を測る(RAG_CORPUS なしなら 3 冊)
+uv run python -m rag_poc.evalgen_extra        # 追加の 8 冊から問題を作る → data/eval/questions_extra.json
+RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev --extra   # 追加の資料から作った問題で検索を測る
 uv run python -m rag_poc.retrieval_eval --table   # 3 冊と 11 冊の検索の結果を表にする
 ```
 

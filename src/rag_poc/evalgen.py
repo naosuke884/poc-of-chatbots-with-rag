@@ -20,7 +20,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from rag_poc import evalset
-from rag_poc.docs import DATA_DIR, DOCS, DOCS_BY_ID, clean_pages
+from rag_poc.docs import DATA_DIR, DOCS, DOCS_BY_ID, Doc, clean_pages
 from rag_poc.llm import JUDGE_MODEL, Usage, anthropic_client
 
 BASE_PATH = DATA_DIR / "eval" / "questions_50.json"
@@ -93,11 +93,11 @@ def windows(doc_id: str) -> list[list[int]]:
     return [pages[i : i + 2] for i in range(0, len(pages), 2)]
 
 
-def draft(doc_id: str, pages: list[int], existing: list[str]) -> tuple[list[dict], Usage]:
+def draft(doc_id: str, pages: list[int], existing: list[str], per_window: tuple[int, int] | None = None) -> tuple[list[dict], Usage]:
     usage = Usage()
     doc = DOCS_BY_ID[doc_id]
     texts = clean_pages(doc)
-    n_ans, n_unans = PER_WINDOW[doc_id]
+    n_ans, n_unans = per_window or PER_WINDOW[doc_id]
     content = (
         f"<document>{doc.title}</document>\n<existing>\n" + "\n".join(existing) + "\n</existing>\n\n"
         + "\n\n".join(_page_xml(doc_id, p, texts[p - 1]) for p in pages)
@@ -123,10 +123,10 @@ def draft(doc_id: str, pages: list[int], existing: list[str]) -> tuple[list[dict
     return rows, usage
 
 
-def _documents_text() -> str:
+def _documents_text(docs: list[Doc] = DOCS) -> str:
     return "\n\n".join(
         f'<document id="{d.id}" title="{d.title}">\n' + "\n".join(_page_xml(d.id, i, t) for i, t in enumerate(clean_pages(d), start=1)) + "\n</document>"
-        for d in DOCS
+        for d in docs
     )
 
 

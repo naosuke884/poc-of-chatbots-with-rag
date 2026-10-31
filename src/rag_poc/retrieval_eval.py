@@ -3,8 +3,9 @@
 資料の範囲は環境変数 RAG_CORPUS で切り替え、結果は data/eval/retrieval_<3|11>/<method>.json に保存する。
 11 冊では evalgold で補った正解ページ(追加の 8 冊にある同じ答えのページ)も正解として数える。
 答えのない質問は、追加の 8 冊に答えがあれば 11 冊の計測から除く。
+--extra を付けると、追加の 8 冊から作った問題(evalgen_extra)を流し、<method>_extra.json に保存する(11 冊のみ)。
 
-    RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev
+    RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev [--extra]
     uv run python -m rag_poc.retrieval_eval --table   # 3 冊と 11 冊の結果を Markdown の表で出す
 """
 
@@ -13,7 +14,7 @@ import json
 import statistics
 import time
 
-from rag_poc import evalgold, evalset
+from rag_poc import evalgen_extra, evalgold, evalset
 from rag_poc.answer import unique_pages
 from rag_poc.docs import CORPUS, DATA_DIR
 from rag_poc.evaluate import page_recall
@@ -25,16 +26,20 @@ def results_dir(corpus: str):
     return DATA_DIR / "eval" / f"retrieval_{corpus}"
 
 
-def questions() -> tuple[list[dict], dict]:
+def questions(extra: bool = False) -> tuple[list[dict], dict]:
     """計測する問題と、補った正解ページ(3 冊では空)を返す。"""
     alt = evalgold.load() if CORPUS == "11" else {}
+    if extra:
+        return evalgen_extra.load(), alt
     qs = [q for q in evalset.load() if not (q["type"] == "unanswerable" and alt.get(q["id"], {}).get("pages"))]
     return qs, alt
 
 
-def run(method: str) -> dict:
+def run(method: str, extra: bool = False) -> dict:
+    if extra and CORPUS != "11":
+        raise ValueError("--extra は RAG_CORPUS=11 で使う")
     retrieve = retriever(method)
-    qs, alt = questions()
+    qs, alt = questions(extra)
     rows = []
     for q in qs:
         usage = Usage()
@@ -66,26 +71,28 @@ def run(method: str) -> dict:
     }
     out = results_dir(CORPUS)
     out.mkdir(parents=True, exist_ok=True)
-    (out / f"{method}.json").write_text(json.dumps({"method": method, "summary": summary, "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / f"{method}{'_extra' if extra else ''}.json").write_text(json.dumps({"method": method, "summary": summary, "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
 
 
 def table() -> str:
-    def load(corpus, method):
-        path = results_dir(corpus) / f"{method}.json"
+    def load(corpus, method, suffix=""):
+        path = results_dir(corpus) / f"{method}{suffix}.json"
         return json.loads(path.read_text(encoding="utf-8"))["summary"] if path.exists() else None
 
     lines = [
-        "| 方式 | 正解ページの取得 3 冊 → 11 冊 | 付録3 の問題 3 冊 → 11 冊 | 渡すページ数 3 冊 → 11 冊 | 検索の時間 3 冊 → 11 冊 | 検索の料金 3 冊 → 11 冊 |",
-        "|---|---|---|---|---|---|",
+        "| 方式 | 正解ページの取得 3 冊 → 11 冊 | 付録3 の問題 3 冊 → 11 冊 | 追加資料の問題(11 冊) | 渡すページ数 3 冊 → 11 冊 | 検索の時間 3 冊 → 11 冊 | 検索の料金 3 冊 → 11 冊 |",
+        "|---|---|---|---|---|---|---|",
     ]
     for m, label in METHODS.items():
-        s3, s11 = load("3", m), load("11", m)
+        s3, s11, ex = load("3", m), load("11", m), load("11", m, "_extra")
         if not (s3 and s11):
             continue
+        extra_recall = f"{ex['recall_alt'] * 100:.0f}%" if ex else "-"
         lines.append(
             f"| {label} | {s3['recall_alt'] * 100:.0f}% → {s11['recall_alt'] * 100:.0f}% "
             f"| {s3['recall_by_doc']['app3'] * 100:.0f}% → {s11['recall_by_doc']['app3'] * 100:.0f}% "
+            f"| {extra_recall} "
             f"| {s3['pages_mean']} → {s11['pages_mean']} "
             f"| {s3['ms']['mean'] / 1000:.1f} → {s11['ms']['mean'] / 1000:.1f} 秒 "
             f"| ${s3['cost_per_question_usd']:.5f} → ${s11['cost_per_question_usd']:.5f} |"
@@ -96,12 +103,13 @@ def table() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("method", nargs="?", choices=list(METHODS))
+    parser.add_argument("--extra", action="store_true", help="追加の 8 冊から作った問題を流す")
     parser.add_argument("--table", action="store_true", help="3 冊と 11 冊の結果を表にする")
     args = parser.parse_args()
     if args.table:
         print(table())
     else:
-        print(json.dumps(run(args.method), ensure_ascii=False, indent=2))
+        print(json.dumps(run(args.method, args.extra), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
