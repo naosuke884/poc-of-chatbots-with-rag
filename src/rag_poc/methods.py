@@ -13,6 +13,7 @@ METHODS = {
     "vector_jev": "ベクトル(Jev で並べ替え)",
     "vector_haiku": "ベクトル(Haiku で並べ替え)",
     "pageindex": "PageIndex",
+    "pageindex_jev": "PageIndex(Jev で節を選択)",
 }
 
 
@@ -30,6 +31,8 @@ def pipeline(method: str) -> Callable[[str], Result]:
         from rag_poc.vector_rag import ask_haiku as ask
     elif method == "pageindex":
         from rag_poc.pageindex_rag import ask
+    elif method == "pageindex_jev":
+        from rag_poc.pageindex_rag import ask_jev as ask
     else:
         raise ValueError(f"unknown method: {method}")
     return ask
@@ -41,6 +44,10 @@ def retriever(method: str) -> Callable[[str, Usage], list[Passage]]:
         from rag_poc.pageindex_rag import search
 
         return lambda q, usage: search(q, usage)[0]
+    if method == "pageindex_jev":
+        from rag_poc.pageindex_rag import search_jev
+
+        return lambda q, usage: search_jev(q, usage)[0]
     from rag_poc.vector_rag import METHOD_OPTIONS, retrieve
 
     if method not in METHOD_OPTIONS:
