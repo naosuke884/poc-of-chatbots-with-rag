@@ -1,8 +1,9 @@
 """ベクトル方式の検索〜回答生成。
 
-ask(シンプルなベクトル検索)は、質問を埋め込み、コサイン距離の近いチャンクを TOP_K 件取ってそのまま渡す。
+ask(シンプルなベクトル検索)は、質問を埋め込み、コサイン距離の近いチャンクを TOP_K 件取る。
 ask_jev(Jev で並べ替え)は、近いチャンクを RERANK_CANDIDATES 件取り、Jev(RERANK_MODEL)に各チャンクに
-答えが書かれているかを判定させて、その確率の高い順に TOP_K 件を選び、それぞれのページ全体に広げてから渡す。
+答えが書かれているかを判定させて、その確率の高い順に TOP_K 件を選ぶ。
+どちらも、取ったチャンクをそれぞれのページ全体に広げてから渡す(表や前後の文脈が切れないように)。
 同じページのチャンクが複数あるときは 1 ページにまとめる。
 
 埋め込みは 3072 次元で、pgvector の vector 型の索引(HNSW / IVFFlat)は 2000 次元までしか張れない。
@@ -55,9 +56,9 @@ def expand_to_pages(passages: list[Passage]) -> list[Passage]:
 
 
 def retrieve(question: str, usage: Usage, jev: bool = False) -> tuple[list[Passage], dict]:
-    """検索だけを行い、回答生成に渡す抜粋と方式ごとの補足を返す。"""
+    """検索だけを行い、回答生成に渡すページと方式ごとの補足を返す。"""
     if not jev:
-        return search(question, usage), {}
+        return expand_to_pages(search(question, usage)), {}
     passages, scores = rerank(question, search(question, usage, k=RERANK_CANDIDATES), usage)
     return expand_to_pages(passages), {"rerank_scores": scores}
 
