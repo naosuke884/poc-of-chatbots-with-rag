@@ -42,11 +42,20 @@ EXTRA_DOCS = [
     Doc("incident_slides", "「中小企業のためのセキュリティインシデント対応の手引き」説明資料", "インシデント手引き 説明資料", "extra/sme_guideline_v4.0_app_incidenttebiki.pdf"),
     Doc("guideline_slides", "「中小企業の情報セキュリティ対策ガイドライン」説明資料", "ガイドライン 説明資料", "extra/sme_guideline_v4.0_setsumeisiryou.pdf"),
 ]
-DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS}
+# 方式の差が出やすい特徴を持つ資料の組。現行版と旧版が混在する本編と、章・節の構造が深いテレワークのガイドライン。data/feat/ に置く
+FEAT_DOCS = [
+    DOCS[0],
+    Doc("main_v31", "中小企業の情報セキュリティ対策ガイドライン第3.1版 本編(旧版)", "本編 第3.1版", "feat/sme_guideline_v3.1.pdf", side_margin=42),
+    Doc("telework", "総務省 テレワークセキュリティガイドライン 第5版", "テレワーク", "feat/telework_guideline_v5.pdf"),
+]
+DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS + FEAT_DOCS}
 
-# 検索する資料の範囲。環境変数 RAG_CORPUS が "11" なら EXTRA_DOCS も含めた 11 冊、それ以外は評価セットの 3 冊
-CORPUS = "11" if os.environ.get("RAG_CORPUS") == "11" else "3"
-CORPUS_DOCS = DOCS + EXTRA_DOCS if CORPUS == "11" else DOCS
+# 検索する資料の範囲。環境変数 RAG_CORPUS で切り替える
+# - なし: 評価セットの 3 冊
+# - "11": EXTRA_DOCS も含めた 11 冊
+# - "feat": FEAT_DOCS(評価セットも data/eval/feat/ の別のもの)
+CORPUS = os.environ.get("RAG_CORPUS") if os.environ.get("RAG_CORPUS") in ("11", "feat") else "3"
+CORPUS_DOCS = {"3": DOCS, "11": DOCS + EXTRA_DOCS, "feat": FEAT_DOCS}[CORPUS]
 
 
 def extract_pages(doc: Doc) -> list[str]:

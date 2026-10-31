@@ -22,11 +22,11 @@ from typing import Literal
 from pydantic import BaseModel
 
 from rag_poc import evalset
-from rag_poc.docs import DATA_DIR, DOCS_BY_ID, clean_pages
+from rag_poc.docs import CORPUS, DATA_DIR, DOCS_BY_ID, clean_pages
 from rag_poc.llm import JUDGE_MODEL, Usage, anthropic_client
 from rag_poc.methods import METHODS, pipeline
 
-RESULTS_DIR = DATA_DIR / "eval" / "results"
+RESULTS_DIR = DATA_DIR / "eval" / ("feat/results" if CORPUS == "feat" else "results")
 SCORES = {"correct": 1.0, "partial": 0.5, "incorrect": 0.0}
 JUDGE_RUNS = 2
 
@@ -81,12 +81,18 @@ def grade(q: dict, answer: str) -> dict:
     }
 
 
-def page_recall(gold: list[dict], pages: list[dict]) -> float | None:
-    """正解の根拠ページのうち pages に入っている割合。答えのない質問は None。"""
+def page_recall(gold: list[dict], pages: list[dict], alt: list[dict] | None = None) -> float | None:
+    """正解の根拠ページのうち pages に入っている割合。答えのない質問は None。
+
+    alt は、それだけで正解の要点がわかるほかのページ(旧版の同じ内容のページなど)。1 つでも入っていれば 1.0 とする。
+    """
     gold_set = {(e["doc"], e["page"]) for e in gold}
     if not gold_set:
         return None
-    return len(gold_set & {(p["doc"], p["page"]) for p in pages}) / len(gold_set)
+    got = {(p["doc"], p["page"]) for p in pages}
+    if {(e["doc"], e["page"]) for e in alt or []} & got:
+        return 1.0
+    return len(gold_set & got) / len(gold_set)
 
 
 def run(method: str, ids: list[str] | None = None) -> list[dict]:
@@ -108,9 +114,10 @@ def run(method: str, ids: list[str] | None = None) -> list[dict]:
                 "id": q["id"],
                 "doc": q["doc"],
                 "type": q["type"],
+                "category": q.get("category"),
                 **g,
-                "retrieved_recall": page_recall(q["evidence"], result["retrieved"]),
-                "cited_recall": page_recall(q["evidence"], result["sources"]),
+                "retrieved_recall": page_recall(q["evidence"], result["retrieved"], q.get("alt_evidence")),
+                "cited_recall": page_recall(q["evidence"], result["sources"], q.get("alt_evidence")),
                 "result": result,
             }
         )
@@ -140,6 +147,7 @@ def summarize(rows: list[dict]) -> dict:
         "needs_review": [r["id"] for r in rows if r.get("needs_review")],
         "by_type": group("type"),
         "by_doc": group("doc"),
+        **({"by_category": group("category")} if all(r.get("category") for r in rows) else {}),
         "retrieved_recall": mean([r["retrieved_recall"] for r in rows]),
         "cited_recall": mean([r["cited_recall"] for r in rows]),
         "latency_ms": {

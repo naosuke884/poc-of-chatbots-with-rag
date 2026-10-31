@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field
 
 from pydantic import BaseModel
 
-from rag_poc.docs import DOCS_BY_ID
+from rag_poc.docs import CORPUS, DOCS_BY_ID
 from rag_poc.llm import ANSWER_MODEL, Usage, anthropic_client
 
 ANSWER_EFFORT = "medium"
@@ -15,6 +15,14 @@ ANSWER_EFFORT = "medium"
 SYSTEM = """あなたは IPA「中小企業の情報セキュリティ対策ガイドライン第4.0版」(本編・付録5 情報セキュリティ関連規程サンプル・付録3 自社診断)について質問に答えるアシスタントです。
 
 - 与えられた資料の抜粋だけを根拠に、日本語で簡潔に答えてください。抜粋にない知識で補わないでください。
+- 抜粋に答えが書かれていない場合は、推測せずに answerable を false にし、answer で「資料には記載がありません」と伝えてください。
+- sources には、回答の根拠にした抜粋の doc と page を挙げてください。根拠にしなかった抜粋は挙げないでください。"""
+
+# 資料の組が feat のとき。旧版が混ざるので、版の扱いを決めておく(検索の側は版を区別しない)
+FEAT_SYSTEM = """あなたは情報セキュリティのガイドライン(IPA「中小企業の情報セキュリティ対策ガイドライン」本編の第4.0版と旧版の第3.1版、総務省「テレワークセキュリティガイドライン 第5版」)について質問に答えるアシスタントです。
+
+- 与えられた資料の抜粋だけを根拠に、日本語で簡潔に答えてください。抜粋にない知識で補わないでください。
+- 資料には同じガイドラインの旧版(第3.1版)が含まれます。質問で版の指定がなければ、現行版(第4.0版)にもとづいて答え、どの版にもとづく答えかを明示してください。現行版の抜粋がなく旧版の抜粋しかない場合は、旧版にもとづく答えであることを明示してください。
 - 抜粋に答えが書かれていない場合は、推測せずに answerable を false にし、answer で「資料には記載がありません」と伝えてください。
 - sources には、回答の根拠にした抜粋の doc と page を挙げてください。根拠にしなかった抜粋は挙げないでください。"""
 
@@ -71,7 +79,7 @@ def generate(question: str, passages: list[Passage], usage: Usage) -> _Answer:
     response = anthropic_client().messages.parse(
         model=ANSWER_MODEL,
         max_tokens=16000,
-        system=SYSTEM,
+        system=FEAT_SYSTEM if CORPUS == "feat" else SYSTEM,
         output_config={"effort": ANSWER_EFFORT},
         messages=[{"role": "user", "content": content}],
         output_format=_Answer,

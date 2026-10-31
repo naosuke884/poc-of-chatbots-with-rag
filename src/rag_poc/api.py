@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
-from rag_poc.docs import DOCS
+from rag_poc.docs import CORPUS_DOCS
 from rag_poc.methods import pipeline
 
 app = FastAPI(title="rag-poc")
@@ -22,7 +22,7 @@ class AskRequest(BaseModel):
 
 @app.get("/api/docs")
 def docs() -> list[dict]:
-    return [{"id": d.id, "title": d.title, "label": d.label} for d in DOCS]
+    return [{"id": d.id, "title": d.title, "label": d.label} for d in CORPUS_DOCS]
 
 
 @app.post("/api/ask")

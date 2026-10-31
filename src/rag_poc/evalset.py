@@ -11,9 +11,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from rag_poc.docs import DATA_DIR, DOCS_BY_ID, extract_pages
+from rag_poc.docs import CORPUS, DATA_DIR, DOCS_BY_ID, extract_pages
 
-EVAL_PATH = DATA_DIR / "eval" / "questions.json"
+# 資料の組が feat のときは、その組の評価セットを使う
+EVAL_PATH = DATA_DIR / "eval" / ("feat/questions.json" if CORPUS == "feat" else "questions.json")
 TYPES = {"fact", "multi", "table", "unanswerable"}
 
 

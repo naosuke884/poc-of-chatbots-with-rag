@@ -117,6 +117,8 @@ uv run python -m rag_poc.evalgold             # 追加の 8 冊にも答えが�
 RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev   # 11 冊で検索だけを流し、正解ページの取得を測る(RAG_CORPUS なしなら 3 冊)
 uv run python -m rag_poc.evalgen_extra        # 追加の 8 冊から問題を作る → data/eval/questions_extra.json
 RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev --extra   # 追加の資料から作った問題で検索を測る
+RAG_CORPUS=feat uv run python -m rag_poc.evalgen_feat   # 版違い・構造の深い文書の評価セットを作る → data/eval/feat/questions.json(資料は data/feat/)
+RAG_CORPUS=feat uv run python -m rag_poc.evaluate vector_jev   # その評価セットで回答・採点まで測る → data/eval/feat/results/(索引は RAG_CORPUS=feat で vector_build・pageindex_build main_v31 telework)
 uv run python -m rag_poc.retrieval_eval --table   # 3 冊と 11 冊の検索の結果を表にする
 ```
 

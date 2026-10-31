@@ -7,11 +7,12 @@
 
 import json
 
+from rag_poc.docs import DOCS_BY_ID
 from rag_poc.evaluate import RESULTS_DIR
 from rag_poc.methods import METHODS
 
 TYPE_LABELS = {"fact": "事実の参照", "multi": "複数箇所", "table": "数値・表", "unanswerable": "答えなし"}
-DOC_LABELS = {"main": "本編", "app5": "付録5", "app3": "付録3"}
+CATEGORY_LABELS = {"version": "版で変わった箇所", "structure": "構造をたどる", "control": "版で変わらない箇所"}
 
 
 def load(method: str) -> dict | None:
@@ -36,8 +37,11 @@ def table() -> str:
     lines.append(row("正解 / 部分正解 / 不正解", lambda x: "{correct} / {partial} / {incorrect}".format(**x["verdicts"])))
     for t, label in TYPE_LABELS.items():
         lines.append(row(f"　{label}", lambda x, t=t: f"{_pct(x['by_type'][t]['score'])}(n={x['by_type'][t]['n']})" if t in x["by_type"] else "-"))
-    for d, label in DOC_LABELS.items():
-        lines.append(row(f"　{label}の問題", lambda x, d=d: _pct(x["by_doc"][d]["score"]) if d in x["by_doc"] else "-"))
+    for d in sorted({d for x in s.values() for d in x["by_doc"]}, key=list(DOCS_BY_ID).index):
+        lines.append(row(f"　{DOCS_BY_ID[d].label}の問題", lambda x, d=d: _pct(x["by_doc"][d]["score"]) if d in x["by_doc"] else "-"))
+    for c, label in CATEGORY_LABELS.items():
+        if any(c in x.get("by_category", {}) for x in s.values()):
+            lines.append(row(f"　{label}", lambda x, c=c: f"{_pct(x['by_category'][c]['score'])}(n={x['by_category'][c]['n']})" if c in x.get("by_category", {}) else "-"))
     lines.append(row("正解ページを検索で取得できた割合", lambda x: _pct(x["retrieved_recall"])))
     lines.append(row("正解ページを根拠に挙げた割合", lambda x: _pct(x["cited_recall"])))
     lines.append(row("応答時間 平均 / 中央値 / 最大", lambda x: "{:.1f} / {:.1f} / {:.1f} 秒".format(x["latency_ms"]["mean"] / 1000, x["latency_ms"]["p50"] / 1000, x["latency_ms"]["max"] / 1000)))
