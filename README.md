@@ -119,6 +119,9 @@ uv run python -m rag_poc.evalgen_extra        # 追加の 8 冊から問題を�
 RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev --extra   # 追加の資料から作った問題で検索を測る
 RAG_CORPUS=feat uv run python -m rag_poc.evalgen_feat   # 版違い・構造の深い文書の評価セットを作る → data/eval/feat/questions.json(資料は data/feat/)
 RAG_CORPUS=feat uv run python -m rag_poc.evaluate vector_jev   # その評価セットで回答・採点まで測る → data/eval/feat/results/(索引は RAG_CORPUS=feat で vector_build・pageindex_build main_v31 telework)
+uv run python -m rag_poc.allganize   # Allganize RAG-Evaluation-Dataset-JA を資料と評価セットの形にする(data/allganize/ に CSV と PDF を置いてから)
+RAG_CORPUS=ag_finance uv run python -m rag_poc.evaluate vector_jev   # 業種ごとに測る(finance / it / manufacturing / public / retail)
+uv run python -m rag_poc.compare --ag   # 5 業種の結果を合わせて表にする
 uv run python -m rag_poc.retrieval_eval --table   # 3 冊と 11 冊の検索の結果を表にする
 ```
 

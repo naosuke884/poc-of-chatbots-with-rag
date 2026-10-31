@@ -13,8 +13,8 @@ from pathlib import Path
 
 from rag_poc.docs import CORPUS, DATA_DIR, DOCS_BY_ID, extract_pages
 
-# 資料の組が feat のときは、その組の評価セットを使う
-EVAL_PATH = DATA_DIR / "eval" / ("feat/questions.json" if CORPUS == "feat" else "questions.json")
+# 3 冊・11 冊以外の資料の組では、その組の評価セットを使う
+EVAL_PATH = DATA_DIR / "eval" / ("questions.json" if CORPUS in ("3", "11") else f"{CORPUS}/questions.json")
 TYPES = {"fact", "multi", "table", "unanswerable"}
 
 

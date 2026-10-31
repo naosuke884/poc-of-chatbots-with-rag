@@ -18,6 +18,13 @@ SYSTEM = """あなたは IPA「中小企業の情報セキュリティ対策ガ�
 - 抜粋に答えが書かれていない場合は、推測せずに answerable を false にし、answer で「資料には記載がありません」と伝えてください。
 - sources には、回答の根拠にした抜粋の doc と page を挙げてください。根拠にしなかった抜粋は挙げないでください。"""
 
+# Allganize のデータセット(業種ごとの公開資料)のとき。資料の一覧は抜粋の title で分かるので、資料名は書かない
+AG_SYSTEM = """あなたは、官公庁・業界団体などが公開している資料について質問に答えるアシスタントです。
+
+- 与えられた資料の抜粋だけを根拠に、日本語で簡潔に答えてください。抜粋にない知識で補わないでください。
+- 抜粋に答えが書かれていない場合は、推測せずに answerable を false にし、answer で「資料には記載がありません」と伝えてください。
+- sources には、回答の根拠にした抜粋の doc と page を挙げてください。根拠にしなかった抜粋は挙げないでください。"""
+
 # 資料の組が feat のとき。旧版が混ざるので、版の扱いを決めておく(検索の側は版を区別しない)
 FEAT_SYSTEM = """あなたは情報セキュリティのガイドライン(IPA「中小企業の情報セキュリティ対策ガイドライン」本編の第4.0版と旧版の第3.1版、総務省「テレワークセキュリティガイドライン 第5版」)について質問に答えるアシスタントです。
 
@@ -79,7 +86,7 @@ def generate(question: str, passages: list[Passage], usage: Usage) -> _Answer:
     response = anthropic_client().messages.parse(
         model=ANSWER_MODEL,
         max_tokens=16000,
-        system=FEAT_SYSTEM if CORPUS == "feat" else SYSTEM,
+        system=FEAT_SYSTEM if CORPUS == "feat" else AG_SYSTEM if CORPUS.startswith("ag_") else SYSTEM,
         output_config={"effort": ANSWER_EFFORT},
         messages=[{"role": "user", "content": content}],
         output_format=_Answer,

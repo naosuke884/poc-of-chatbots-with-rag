@@ -3,6 +3,7 @@
 ページ番号は PDF の物理ページ(1 始まり)で数える。資料に印刷されたページ番号とは一致しない。
 """
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,20 +49,37 @@ FEAT_DOCS = [
     Doc("main_v31", "中小企業の情報セキュリティ対策ガイドライン第3.1版 本編(旧版)", "本編 第3.1版", "feat/sme_guideline_v3.1.pdf", side_margin=42),
     Doc("telework", "総務省 テレワークセキュリティガイドライン 第5版", "テレワーク", "feat/telework_guideline_v5.pdf"),
 ]
-DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS + FEAT_DOCS}
+
+
+def _ag_docs() -> dict[str, list[Doc]]:
+    """Allganize の日本語 RAG 評価データセットの資料(業種 → 資料)。rag_poc.allganize が data/allganize/docs.json に書く。"""
+    path = DATA_DIR / "allganize" / "docs.json"
+    if not path.exists():
+        return {}
+    out: dict[str, list[Doc]] = {}
+    for d in json.loads(path.read_text(encoding="utf-8")):
+        out.setdefault(d["domain"], []).append(Doc(d["id"], d["title"], d["label"], d["filename"]))
+    return out
+
+
+AG_DOCS = _ag_docs()
+DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS + FEAT_DOCS + [d for docs in AG_DOCS.values() for d in docs]}
 
 # 検索する資料の範囲。環境変数 RAG_CORPUS で切り替える
 # - なし: 評価セットの 3 冊
 # - "11": EXTRA_DOCS も含めた 11 冊
-# - "feat": FEAT_DOCS(評価セットも data/eval/feat/ の別のもの)
-CORPUS = os.environ.get("RAG_CORPUS") if os.environ.get("RAG_CORPUS") in ("11", "feat") else "3"
-CORPUS_DOCS = {"3": DOCS, "11": DOCS + EXTRA_DOCS, "feat": FEAT_DOCS}[CORPUS]
+# - "feat": FEAT_DOCS
+# - "ag_<業種>": Allganize のデータセットのその業種の資料
+# 3 冊・11 冊以外の評価セットと結果は data/eval/<RAG_CORPUS>/ に置く
+CORPORA = {"3": DOCS, "11": DOCS + EXTRA_DOCS, "feat": FEAT_DOCS, **{f"ag_{domain}": docs for domain, docs in AG_DOCS.items()}}
+CORPUS = os.environ.get("RAG_CORPUS") if os.environ.get("RAG_CORPUS") in CORPORA else "3"
+CORPUS_DOCS = CORPORA[CORPUS]
 
 
 def extract_pages(doc: Doc) -> list[str]:
     """資料の各ページのテキストを、物理ページ順に返す。"""
     with pymupdf.open(doc.path) as pdf:
-        return [page.get_text() for page in pdf]
+        return [page.get_text().replace("\x00", "") for page in pdf]  # NUL を含む PDF がある(DB に入れられない)
 
 
 def clean_pages(doc: Doc) -> list[str]:
@@ -73,7 +91,7 @@ def clean_pages(doc: Doc) -> list[str]:
         for page in pdf:
             left, right = doc.side_margin, page.rect.width - doc.side_margin
             blocks = [b for b in page.get_text("blocks") if left < b[2] and b[0] < right]
-            pages.append("".join(b[4] for b in blocks))
+            pages.append("".join(b[4] for b in blocks).replace("\x00", ""))
     return pages
 
 
