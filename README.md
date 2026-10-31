@@ -1,18 +1,19 @@
 # poc-of-chatbots-with-rag
 
-RAG（検索拡張生成）を前提としたチャットボットの PoC。同じ資料・同じ評価セットで、次の2方式を比較する。
+RAG（検索拡張生成）を前提としたチャットボットの PoC。同じ資料・同じ評価セットで、次の3方式を比較する。
 
-1. **ベクトル埋め込み方式**：資料をチャンクに分割・埋め込みし、ベクトル類似度検索で関連箇所を取得する
-2. **PageIndex 方式**：資料の階層構造（目次ツリー）をもとに、LLM の推論で関連箇所を辿って取得する（[PageIndex](https://github.com/VectifyAI/PageIndex) OSS 版）
+1. **ベクトル**（`vector`）：資料をチャンクに分割・埋め込みし、ベクトル類似度検索で関連箇所を取得する
+2. **ベクトル + Jev で並べ替え**（`vector_jev`）：ベクトル検索で多めに取ったチャンクを、判定用のモデル Jev で「答えが書かれているか」によって並べ替え、上位をページ全体に広げて渡す。本実装の第一候補
+3. **PageIndex**（`pageindex`）：資料の階層構造（目次ツリー）をもとに、LLM の推論で関連箇所を辿って取得する（[PageIndex](https://github.com/VectifyAI/PageIndex) OSS 版）
 
 ## 検証の前提
 
 | 項目 | 内容 |
 |---|---|
 | 対象資料 | IPA「[中小企業の情報セキュリティ対策ガイドライン第4.0版](https://www.ipa.go.jp/security/guide/sme/about.html)」の本編・付録5（情報セキュリティ関連規程サンプル）・付録3（自社診断） |
-| 回答生成 LLM | Claude Sonnet 5.5（両方式共通）。PageIndex の索引作成は Claude Haiku 5.5 |
+| 回答生成 LLM | Claude Sonnet 5.5（3方式共通）。PageIndex の索引作成は Claude Haiku 5.5 |
 | 埋め込み | OpenAI text-embedding-3-large |
-| 並べ替え（追加検証） | TypeSafe AI の Jev（`jev-latest`、キーは `TYPESAFE_API_KEY`） |
+| 並べ替え | TypeSafe AI の Jev（`jev-latest`、キーは `TYPESAFE_API_KEY`） |
 | ベクトル DB | PostgreSQL + pgvector |
 | 評価 | 148問（正解ページ番号付き）、LLM による採点。精度・根拠ページの一致率・速度・コスト・構築の手間を計測して比較する |
 | 予算 | API 利用料は合計 $100 まで |
@@ -75,12 +76,12 @@ RAG_CORPUS=11 uv run python -m rag_poc.vector_build   # 追加の 8 冊を含む
 ## 質問応答
 
 ```sh
-uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector / vector_page / vector_page_doc / vector_jev / vector_haiku も可)
+uv run python -m rag_poc.ask --method pageindex "質問"            # 1 問を CLI で答える(--method vector / vector_jev も可)
 uv run uvicorn rag_poc.api:app --host 0.0.0.0 --port 8100        # 質問応答 API
 cd web && npm install && npm run dev                             # Web UI(http://localhost:5180、/api は 8100 へ転送)
 ```
 
-API は `POST /api/ask`（`{"question": "…", "method": "…"}`。method は `src/rag_poc/methods.py` の方式 id）で、回答・根拠ページ・検索で取得したページ・処理時間・トークン数・料金を返す。Web UI はチェックボックスで選んだ方式に同じ質問を並列で投げ、結果を列に並べて表示する（最初は Jev で並べ替える方式と PageIndex を選んだ状態）。
+API は `POST /api/ask`（`{"question": "…", "method": "…"}`。method は `src/rag_poc/methods.py` の方式 id）で、回答・根拠ページ・検索で取得したページ・処理時間・トークン数・料金を返す。Web UI はチェックボックスで選んだ方式に同じ質問を並列で投げ、結果を列に並べて表示する（最初は3方式とも選んだ状態）。
 
 ## 評価セット
 

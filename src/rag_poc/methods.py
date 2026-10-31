@@ -8,13 +8,8 @@ from rag_poc.llm import Usage
 # 方式 id と表示名
 METHODS = {
     "vector": "ベクトル",
-    "vector_page": "ベクトル(ページ拡張)",
-    "vector_page_doc": "ベクトル(ページ拡張+資料枠)",
-    "vector_jev": "ベクトル(Jev で並べ替え)",
-    "vector_haiku": "ベクトル(Haiku で並べ替え)",
+    "vector_jev": "ベクトル + Jev で並べ替え",
     "pageindex": "PageIndex",
-    "pageindex_jev": "PageIndex(Jev で節を選択)",
-    "hybrid_jev": "ベクトルで資料を絞り PageIndex + Jev",
 }
 
 
@@ -22,20 +17,10 @@ def pipeline(method: str) -> Callable[[str], Result]:
     """方式の ask 関数を返す。使わない方式の依存(DB・目次ツリー)を読み込まないよう、ここで import する。"""
     if method == "vector":
         from rag_poc.vector_rag import ask
-    elif method == "vector_page":
-        from rag_poc.vector_rag import ask_page as ask
-    elif method == "vector_page_doc":
-        from rag_poc.vector_rag import ask_page_doc as ask
     elif method == "vector_jev":
         from rag_poc.vector_rag import ask_jev as ask
-    elif method == "vector_haiku":
-        from rag_poc.vector_rag import ask_haiku as ask
     elif method == "pageindex":
         from rag_poc.pageindex_rag import ask
-    elif method == "pageindex_jev":
-        from rag_poc.pageindex_rag import ask_jev as ask
-    elif method == "hybrid_jev":
-        from rag_poc.hybrid_rag import ask
     else:
         raise ValueError(f"unknown method: {method}")
     return ask
@@ -47,16 +32,8 @@ def retriever(method: str) -> Callable[[str, Usage], list[Passage]]:
         from rag_poc.pageindex_rag import search
 
         return lambda q, usage: search(q, usage)[0]
-    if method == "pageindex_jev":
-        from rag_poc.pageindex_rag import search_jev
-
-        return lambda q, usage: search_jev(q, usage)[0]
-    if method == "hybrid_jev":
-        from rag_poc.hybrid_rag import retrieve as retrieve_hybrid
-
-        return lambda q, usage: retrieve_hybrid(q, usage)[0]
-    from rag_poc.vector_rag import METHOD_OPTIONS, retrieve
-
-    if method not in METHOD_OPTIONS:
+    if method not in ("vector", "vector_jev"):
         raise ValueError(f"unknown method: {method}")
-    return lambda q, usage: retrieve(q, usage, **METHOD_OPTIONS[method])[0]
+    from rag_poc.vector_rag import retrieve
+
+    return lambda q, usage: retrieve(q, usage, jev=method == "vector_jev")[0]

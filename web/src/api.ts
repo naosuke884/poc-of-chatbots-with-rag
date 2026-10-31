@@ -1,4 +1,4 @@
-export type Method = "vector" | "vector_page" | "vector_page_doc" | "vector_jev" | "vector_haiku" | "pageindex";
+export type Method = "vector" | "vector_jev" | "pageindex";
 
 export interface DocInfo {
   id: string;

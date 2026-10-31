@@ -1,4 +1,4 @@
-"""資料を増やしたときの、1 問あたりの検索の時間・料金と、回答生成に渡す量の伸び方を測る。
+"""資料を増やしたときの、1 問あたりの検索の時間・料金の伸び方を測る。
 
 資料の量は次の段階で測る。
 - 3 資料: 評価セットの資料(140 ページ)
@@ -7,7 +7,8 @@
   中身が同じなので精度は測らず、時間と量だけを見る
 
 ベクトル方式は、段階ごとに chunks_scale_<n> テーブルを作り、質問の埋め込み(資料の量によらない)と
-DB の検索を分けて測る。資料ごとの枠(PER_DOC)は資料数に比例して渡すページが増えるので、ページ数も数える。
+DB の検索を分けて測る。DB の検索は、シンプルなベクトル検索の TOP_K 件と、Jev で並べ替える前の RERANK_CANDIDATES 件で測る。
+並べ替えは候補の件数で決まり、資料の量によらないので、ここでは測らない。
 PageIndex 方式は、段階ごとの目次ツリーで節の選択を行い、時間・トークン数・料金を測る。
 ツリーはキャッシュするので、各段階の最初の 1 問(キャッシュ作成)とそれ以降を分けて集計する。
 
@@ -21,7 +22,6 @@ import time
 import numpy as np
 
 from rag_poc import evalset, pageindex_rag, vector_rag
-from rag_poc.answer import Passage, format_passages, unique_pages
 from rag_poc.docs import DATA_DIR, DOCS, DOCS_BY_ID, EXTRA_DOCS, clean_pages
 from rag_poc.llm import ANSWER_MODEL, Usage, anthropic_client
 from rag_poc.pageindex_build import load_tree
@@ -50,10 +50,6 @@ def levels(copies: list[int]) -> list[tuple[str, list[str]]]:
     for c in copies:
         out.append((str(len(all11) * c), [_copy_id(d, k) for k in range(1, c + 1) for d in all11]))
     return out
-
-
-def _pages(doc_id: str) -> list[str]:
-    return vector_rag._pages(_base_id(doc_id))
 
 
 def _count_pages(doc_ids: list[str]) -> int:
@@ -91,26 +87,10 @@ def build_vector_tables() -> dict:
     return {"extra_chunks": len(extra), "extra_pages": _count_pages([d.id for d in EXTRA_DOCS]), "embed_seconds": round(embed_seconds, 1), **usage.to_dict(), "chunks": counts}
 
 
-def _search(conn, table: str, v, per_doc: int) -> tuple[list[Passage], float]:
+def _search_ms(conn, table: str, v, k: int) -> float:
     started = time.perf_counter()
-    rows = conn.execute(f"SELECT id, doc, page FROM {table} ORDER BY embedding <=> %s LIMIT %s", (v, vector_rag.TOP_K)).fetchall()
-    if per_doc:
-        extra = conn.execute(
-            f"""SELECT id, doc, page FROM (
-                   SELECT id, doc, page, embedding, row_number() OVER (PARTITION BY doc ORDER BY embedding <=> %s) AS rank FROM {table}
-               ) ranked WHERE rank <= %s ORDER BY embedding <=> %s""",
-            (v, per_doc, v),
-        ).fetchall()
-        seen = {r[0] for r in rows}
-        rows += [r for r in extra if r[0] not in seen]
-    elapsed = time.perf_counter() - started
-    return [Passage(doc=d, page=p, text="") for _, d, p in rows], elapsed
-
-
-def _context_tokens(pages: list[dict]) -> int:
-    """回答生成に渡す抜粋のトークン数(token counting API で数える)。"""
-    passages = [Passage(doc=_base_id(p["doc"]), page=p["page"], text=_pages(p["doc"])[p["page"] - 1]) for p in pages]
-    return anthropic_client().messages.count_tokens(model=ANSWER_MODEL, messages=[{"role": "user", "content": format_passages(passages)}]).input_tokens
+    conn.execute(f"SELECT id FROM {table} ORDER BY embedding <=> %s LIMIT %s", (v, k)).fetchall()
+    return (time.perf_counter() - started) * 1000
 
 
 def measure_vector(questions: list[dict]) -> list[dict]:
@@ -122,29 +102,14 @@ def measure_vector(questions: list[dict]) -> list[dict]:
         embed_ms.append((time.perf_counter() - started) * 1000)
         vectors.append(np.array(e))
 
-    out, per_page = [], {}
+    out = []
     with connect() as conn:
         for name, docs in levels(VECTOR_COPIES):
             table = f"chunks_scale_{name}"
-            _search(conn, table, vectors[0], 0)  # 最初の 1 回はテーブルの読み込みを含むので捨てる
+            _search_ms(conn, table, vectors[0], vector_rag.TOP_K)  # 最初の 1 回はテーブルの読み込みを含むので捨てる
             row = {"docs": len(docs), "pages": _count_pages(docs), "chunks": conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]}
-            for method, per_doc in (("vector_page", 0), ("vector_page_doc", vector_rag.PER_DOC)):
-                ms, n_pages, tokens = [], [], []
-                for i, v in enumerate(vectors):
-                    passages, elapsed = _search(conn, table, v, per_doc)
-                    pages = unique_pages(passages)
-                    ms.append(elapsed * 1000)
-                    n_pages.append(len(pages))
-                    if i < 5 and len(pages) <= 200:  # トークン数は 5 問だけ数え、1 ページあたりの値で残りを見積もる
-                        tokens.append(_context_tokens(pages) / len(pages))
-                if tokens:  # ページが多すぎて数えられない段階は、直前の段階の 1 ページあたりの値を使う
-                    per_page[method] = statistics.mean(tokens)
-                row[method] = {
-                    "db_ms": round(statistics.mean(ms), 1),
-                    "pages": round(statistics.mean(n_pages), 1),
-                    "context_tokens": round(statistics.mean(n_pages) * per_page[method]),
-                    "context_tokens_estimated": not tokens,
-                }
+            for key, k in (("top_k", vector_rag.TOP_K), ("rerank_candidates", vector_rag.RERANK_CANDIDATES)):
+                row[key] = {"k": k, "db_ms": round(statistics.mean(_search_ms(conn, table, v, k) for v in vectors), 1)}
             out.append(row)
             print(json.dumps(row, ensure_ascii=False), flush=True)
     return [{"embed_ms": round(statistics.mean(embed_ms)), "embed_usage": usage.to_dict()}, *out]

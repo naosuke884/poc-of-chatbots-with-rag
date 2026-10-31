@@ -10,11 +10,8 @@ export type ColumnState =
 
 // 表示名は src/rag_poc/methods.py の METHODS と同じにする。default は最初から選ばれている方式
 const METHODS: { id: Method; label: string; default: boolean }[] = [
-  { id: "vector", label: "ベクトル", default: false },
-  { id: "vector_page", label: "ベクトル(ページ拡張)", default: false },
-  { id: "vector_page_doc", label: "ベクトル(ページ拡張+資料枠)", default: false },
-  { id: "vector_jev", label: "ベクトル(Jev で並べ替え)", default: true },
-  { id: "vector_haiku", label: "ベクトル(Haiku で並べ替え)", default: false },
+  { id: "vector", label: "ベクトル", default: true },
+  { id: "vector_jev", label: "ベクトル + Jev で並べ替え", default: true },
   { id: "pageindex", label: "PageIndex", default: true },
 ];
 
