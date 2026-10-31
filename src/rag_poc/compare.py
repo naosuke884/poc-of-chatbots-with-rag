@@ -2,8 +2,9 @@
 
 公開リポジトリに置けるよう、質問文や回答は出さず集計値だけを出す。
 --ag を付けると、Allganize のデータセットの業種ごとの結果(data/eval/ag_<業種>/results/)を合わせて 1 つの表にする。
+そのとき、PageIndex OSS が目次ツリーを作れなかった資料の問題は、3 方式とも除く(--all で除かない)。
 
-    uv run python -m rag_poc.compare [--ag]
+    uv run python -m rag_poc.compare [--ag [--all]]
 """
 
 import argparse
@@ -12,6 +13,7 @@ import json
 from rag_poc.docs import AG_DOCS, DATA_DIR, DOCS_BY_ID
 from rag_poc.evaluate import RESULTS_DIR, summarize
 from rag_poc.methods import METHODS
+from rag_poc.pageindex_build import tree_path
 
 TYPE_LABELS = {"fact": "事実の参照", "multi": "複数箇所", "table": "数値・表", "unanswerable": "答えなし", "paragraph": "本文", "image": "図・画像"}
 DOMAIN_LABELS = {"finance": "金融", "it": "情報通信", "manufacturing": "製造", "public": "公共", "retail": "流通・小売"}
@@ -23,14 +25,22 @@ def load(method: str) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
-def load_ag(method: str) -> dict | None:
-    """Allganize の業種ごとの結果を合わせる。業種ごとの正答率は by_domain に入れる。"""
+def load_ag(method: str, indexed_only: bool = True) -> dict | None:
+    """Allganize の業種ごとの結果を合わせる。業種ごとの正答率は by_domain に入れる。
+
+    indexed_only なら、目次ツリーのない資料(PageIndex で検索できない資料)が正解の問題を除く。
+    """
     rows = []
     for domain in AG_DOCS:
         path = DATA_DIR / "eval" / f"ag_{domain}" / "results" / f"{method}.json"
         if not path.exists():
             return None
-        rows += [{**r, "domain": domain} for r in json.loads(path.read_text(encoding="utf-8"))["rows"]]
+        doc_of = {q["id"]: q["doc"] for q in json.loads((path.parent.parent / "questions.json").read_text(encoding="utf-8"))}
+        rows += [
+            {**r, "domain": domain}
+            for r in json.loads(path.read_text(encoding="utf-8"))["rows"]
+            if not indexed_only or tree_path(doc_of[r["id"]]).exists()
+        ]
     summary = summarize(rows)
     summary["by_domain"] = {d: {"n": len(g), "score": round(sum(r["score"] for r in g) / len(g), 3)} for d in AG_DOCS for g in [[r for r in rows if r["domain"] == d]]}
     summary["by_doc"] = {}
@@ -41,8 +51,8 @@ def _pct(x):
     return "-" if x is None else f"{x * 100:.0f}%"
 
 
-def table(ag: bool = False) -> str:
-    data = {m: (load_ag if ag else load)(m) for m in METHODS}
+def table(ag: bool = False, indexed_only: bool = True) -> str:
+    data = {m: load_ag(m, indexed_only) if ag else load(m) for m in METHODS}
     cols = [(m, label) for m, label in METHODS.items() if data[m]]
     s = {m: data[m]["summary"] for m, _ in cols}
 
@@ -95,4 +105,6 @@ def misses(method: str) -> list[dict]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ag", action="store_true", help="Allganize のデータセットの業種ごとの結果を合わせる")
-    print(table(parser.parse_args().ag))
+    parser.add_argument("--all", action="store_true", help="--ag で、目次ツリーのない資料の問題も含める")
+    args = parser.parse_args()
+    print(table(args.ag, indexed_only=not args.all))
