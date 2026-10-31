@@ -2,7 +2,8 @@
 
 from collections.abc import Callable
 
-from rag_poc.answer import Result
+from rag_poc.answer import Passage, Result
+from rag_poc.llm import Usage
 
 # 方式 id と表示名
 METHODS = {
@@ -32,3 +33,16 @@ def pipeline(method: str) -> Callable[[str], Result]:
     else:
         raise ValueError(f"unknown method: {method}")
     return ask
+
+
+def retriever(method: str) -> Callable[[str, Usage], list[Passage]]:
+    """方式の検索だけを行う関数を返す。回答生成に渡す抜粋を返す。"""
+    if method == "pageindex":
+        from rag_poc.pageindex_rag import search
+
+        return lambda q, usage: search(q, usage)[0]
+    from rag_poc.vector_rag import METHOD_OPTIONS, retrieve
+
+    if method not in METHOD_OPTIONS:
+        raise ValueError(f"unknown method: {method}")
+    return lambda q, usage: retrieve(q, usage, **METHOD_OPTIONS[method])[0]

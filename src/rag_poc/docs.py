@@ -3,6 +3,7 @@
 ページ番号は PDF の物理ページ(1 始まり)で数える。資料に印刷されたページ番号とは一致しない。
 """
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,6 +43,10 @@ EXTRA_DOCS = [
     Doc("guideline_slides", "「中小企業の情報セキュリティ対策ガイドライン」説明資料", "ガイドライン 説明資料", "extra/sme_guideline_v4.0_setsumeisiryou.pdf"),
 ]
 DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS}
+
+# 検索する資料の範囲。環境変数 RAG_CORPUS が "11" なら EXTRA_DOCS も含めた 11 冊、それ以外は評価セットの 3 冊
+CORPUS = "11" if os.environ.get("RAG_CORPUS") == "11" else "3"
+CORPUS_DOCS = DOCS + EXTRA_DOCS if CORPUS == "11" else DOCS
 
 
 def extract_pages(doc: Doc) -> list[str]:

@@ -178,7 +178,7 @@ def _count_nodes(doc_ids: list[str]) -> int:
 
 def _select(trees: str, question: str) -> tuple[float, Usage]:
     usage = Usage()
-    system = pageindex_rag.SELECT_SYSTEM.replace("3 つの資料", "資料").format(trees=trees)
+    system = pageindex_rag.SELECT_SYSTEM.replace("{n} つの資料", "資料").format(trees=trees)
     started = time.perf_counter()
     response = anthropic_client().messages.parse(
         model=ANSWER_MODEL,

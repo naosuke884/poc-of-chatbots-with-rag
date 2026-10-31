@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from rag_poc.answer import Passage, Result, generate, unique_pages
 from rag_poc.docs import DOCS_BY_ID, clean_pages
 from rag_poc.llm import INDEX_MODEL, RERANK_MODEL, Usage, anthropic_client, typesafe_client
-from rag_poc.vector_build import connect, embed
+from rag_poc.vector_build import CHUNKS_TABLE, connect, embed
 
 TOP_K = 8
 PER_DOC = 2
@@ -42,12 +42,12 @@ def search(question: str, usage: Usage, k: int = TOP_K, per_doc: int = 0) -> lis
     v = np.array(q)
 
     with connect() as conn:
-        rows = conn.execute("SELECT id, doc, page, text FROM chunks ORDER BY embedding <=> %s LIMIT %s", (v, k)).fetchall()
+        rows = conn.execute(f"SELECT id, doc, page, text FROM {CHUNKS_TABLE} ORDER BY embedding <=> %s LIMIT %s", (v, k)).fetchall()
         if per_doc:
             # 資料ごとの上位 per_doc 件のうち、全体の上位に入っていないものを後ろに足す
             extra = conn.execute(
-                """SELECT id, doc, page, text FROM (
-                       SELECT *, row_number() OVER (PARTITION BY doc ORDER BY embedding <=> %s) AS rank FROM chunks
+                f"""SELECT id, doc, page, text FROM (
+                       SELECT *, row_number() OVER (PARTITION BY doc ORDER BY embedding <=> %s) AS rank FROM {CHUNKS_TABLE}
                    ) ranked WHERE rank <= %s ORDER BY embedding <=> %s""",
                 (v, per_doc, v),
             ).fetchall()
@@ -107,10 +107,9 @@ def expand_to_pages(passages: list[Passage]) -> list[Passage]:
     return [Passage(doc=p["doc"], page=p["page"], text=_pages(p["doc"])[p["page"] - 1]) for p in unique_pages(passages)]
 
 
-def ask(question: str, expand: bool = False, per_doc: int = 0, jev: bool = False, haiku: bool = False, method: str = "vector") -> Result:
-    usage = Usage()
+def retrieve(question: str, usage: Usage, expand: bool = False, per_doc: int = 0, jev: bool = False, haiku: bool = False) -> tuple[list[Passage], dict]:
+    """検索だけを行い、回答生成に渡す抜粋と方式ごとの補足を返す。"""
     detail = {}
-    started = time.perf_counter()
     if jev:
         passages, scores = rerank(question, search(question, usage, k=RERANK_CANDIDATES), usage)
         detail["rerank_scores"] = scores
@@ -121,6 +120,13 @@ def ask(question: str, expand: bool = False, per_doc: int = 0, jev: bool = False
         passages = search(question, usage, per_doc=per_doc)
     if expand:
         passages = expand_to_pages(passages)
+    return passages, detail
+
+
+def ask(question: str, expand: bool = False, per_doc: int = 0, jev: bool = False, haiku: bool = False, method: str = "vector") -> Result:
+    usage = Usage()
+    started = time.perf_counter()
+    passages, detail = retrieve(question, usage, expand=expand, per_doc=per_doc, jev=jev, haiku=haiku)
     retrieved = time.perf_counter()
     answer = generate(question, passages, usage)
     finished = time.perf_counter()
@@ -138,17 +144,27 @@ def ask(question: str, expand: bool = False, per_doc: int = 0, jev: bool = False
     )
 
 
+# ベクトル系の方式ごとの検索の設定(retrieve の引数)
+METHOD_OPTIONS = {
+    "vector": {},
+    "vector_page": {"expand": True},
+    "vector_page_doc": {"expand": True, "per_doc": PER_DOC},
+    "vector_jev": {"expand": True, "jev": True},
+    "vector_haiku": {"expand": True, "haiku": True},
+}
+
+
 def ask_page(question: str) -> Result:
-    return ask(question, expand=True, method="vector_page")
+    return ask(question, **METHOD_OPTIONS["vector_page"], method="vector_page")
 
 
 def ask_page_doc(question: str) -> Result:
-    return ask(question, expand=True, per_doc=PER_DOC, method="vector_page_doc")
+    return ask(question, **METHOD_OPTIONS["vector_page_doc"], method="vector_page_doc")
 
 
 def ask_jev(question: str) -> Result:
-    return ask(question, expand=True, jev=True, method="vector_jev")
+    return ask(question, **METHOD_OPTIONS["vector_jev"], method="vector_jev")
 
 
 def ask_haiku(question: str) -> Result:
-    return ask(question, expand=True, haiku=True, method="vector_haiku")
+    return ask(question, **METHOD_OPTIONS["vector_haiku"], method="vector_haiku")

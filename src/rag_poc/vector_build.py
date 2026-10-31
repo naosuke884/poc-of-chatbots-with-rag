@@ -15,7 +15,7 @@ import time
 import psycopg
 from pgvector.psycopg import register_vector
 
-from rag_poc.docs import DATA_DIR, DOCS, Doc, clean_pages
+from rag_poc.docs import CORPUS, CORPUS_DOCS, DATA_DIR, DOCS, Doc, clean_pages
 from rag_poc.llm import EMBED_MODEL, Usage, openai_client
 
 CHUNK_CHARS = 600
@@ -24,17 +24,19 @@ EMBED_DIM = 3072
 EMBED_BATCH = 64
 # ページ番号だけのページなど、これより短いチャンクは登録しない
 MIN_CHARS = 30
-STATS_PATH = DATA_DIR / "index" / "vector_build.json"
+# 11 冊のときは別のテーブル・統計ファイルにする
+CHUNKS_TABLE = "chunks" if CORPUS == "3" else f"chunks_{CORPUS}"
+STATS_PATH = DATA_DIR / "index" / ("vector_build.json" if CORPUS == "3" else f"vector_build_{CORPUS}.json")
 
-SCHEMA = f"""
+SCHEMA = """
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE TABLE IF NOT EXISTS chunks (
+CREATE TABLE IF NOT EXISTS {table} (
     id serial PRIMARY KEY,
     doc text NOT NULL,
     page int NOT NULL,
     seq int NOT NULL,
     text text NOT NULL,
-    embedding vector({EMBED_DIM}) NOT NULL
+    embedding vector({dim}) NOT NULL
 );
 """
 
@@ -84,7 +86,7 @@ def embed(texts: list[str], usage: Usage) -> list[list[float]]:
 
 
 def build() -> dict:
-    chunks = make_chunks()
+    chunks = make_chunks(CORPUS_DOCS)
     usage = Usage()
     started = time.perf_counter()
     for i in range(0, len(chunks), EMBED_BATCH):
@@ -94,11 +96,11 @@ def build() -> dict:
     elapsed = time.perf_counter() - started
 
     with connect() as conn:
-        conn.execute("DROP TABLE IF EXISTS chunks")
-        conn.execute(SCHEMA)
+        conn.execute(f"DROP TABLE IF EXISTS {CHUNKS_TABLE}")
+        conn.execute(SCHEMA.format(table=CHUNKS_TABLE, dim=EMBED_DIM))
         with conn.cursor() as cur:
             cur.executemany(
-                "INSERT INTO chunks (doc, page, seq, text, embedding) VALUES (%s, %s, %s, %s, %s)",
+                f"INSERT INTO {CHUNKS_TABLE} (doc, page, seq, text, embedding) VALUES (%s, %s, %s, %s, %s)",
                 [(c["doc"], c["page"], c["seq"], c["text"], c["embedding"]) for c in chunks],
             )
 

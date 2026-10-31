@@ -11,7 +11,7 @@ from functools import cache
 from pydantic import BaseModel
 
 from rag_poc.answer import Passage, Result, generate, unique_pages
-from rag_poc.docs import DOCS, clean_pages
+from rag_poc.docs import CORPUS_DOCS, clean_pages
 from rag_poc.llm import ANSWER_MODEL, Usage, anthropic_client
 from rag_poc.pageindex_build import load_tree
 
@@ -21,7 +21,7 @@ MAX_PAGES = 10
 
 SELECT_SYSTEM = """あなたは資料の目次ツリーを辿って、質問に答えるために読むべき節を選ぶアシスタントです。
 
-以下は 3 つの資料の目次ツリーです。各節には id・見出し・ページ範囲・要約があります。
+以下は {n} つの資料の目次ツリーです。各節には id・見出し・ページ範囲・要約があります。
 質問に答えるのに必要な記述が載っている節を、関係が深い順に最大 5 つ選んでください。
 
 - 子の節で足りるときは、親ではなく子を選んでください(ページ範囲が狭いほうが読む量が少なく済みます)。
@@ -48,7 +48,7 @@ def _nodes() -> dict[str, dict]:
             nodes[f"{doc_id}:{n['node_id']}"] = {"doc": doc_id, "title": n["title"], "start": n["start_index"], "end": n["end_index"]}
             walk(doc_id, n.get("nodes", []))
 
-    for doc in DOCS:
+    for doc in CORPUS_DOCS:
         walk(doc.id, load_tree(doc.id)["structure"])
     return nodes
 
@@ -63,7 +63,7 @@ def _trees_text() -> str:
             lines.append(f"{'  ' * depth}- [{doc_id}:{n['node_id']}] {n['title']} (p{n['start_index']}-{n['end_index']}): {summary}")
             walk(doc_id, n.get("nodes", []), depth + 1)
 
-    for doc in DOCS:
+    for doc in CORPUS_DOCS:
         lines.append(f'<tree doc="{doc.id}" title="{doc.title}">')
         walk(doc.id, load_tree(doc.id)["structure"], 0)
         lines.append("</tree>")
@@ -72,14 +72,14 @@ def _trees_text() -> str:
 
 @cache
 def _pages(doc_id: str) -> list[str]:
-    return clean_pages(next(d for d in DOCS if d.id == doc_id))
+    return clean_pages(next(d for d in CORPUS_DOCS if d.id == doc_id))
 
 
 def select_nodes(question: str, usage: Usage) -> _Selection:
     response = anthropic_client().messages.parse(
         model=ANSWER_MODEL,
         max_tokens=16000,
-        system=[{"type": "text", "text": SELECT_SYSTEM.format(trees=_trees_text()), "cache_control": {"type": "ephemeral"}}],
+        system=[{"type": "text", "text": SELECT_SYSTEM.format(n=len(CORPUS_DOCS), trees=_trees_text()), "cache_control": {"type": "ephemeral"}}],
         output_config={"effort": SELECT_EFFORT},
         messages=[{"role": "user", "content": f"質問: {question}"}],
         output_format=_Selection,

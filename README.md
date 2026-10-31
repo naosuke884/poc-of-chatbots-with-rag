@@ -69,6 +69,7 @@ uv run python -m rag_poc.docs   # ページごとのテキストを data/text/<d
 ```sh
 uv run python -m rag_poc.pageindex_build   # PageIndex の目次ツリー（Claude Haiku 5.5）→ data/index/pageindex/<doc>.json
 uv run python -m rag_poc.vector_build      # チャンク分割・埋め込み（text-embedding-3-large）→ PostgreSQL の chunks テーブル
+RAG_CORPUS=11 uv run python -m rag_poc.vector_build   # 追加の 8 冊を含む 11 冊で作る → chunks_11 テーブル(PageIndex は pageindex_build に資料 id を渡す)
 ```
 
 ## 質問応答
@@ -111,6 +112,9 @@ uv run python -m rag_poc.evaluate pageindex   # 全問を実行・採点し data
 uv run python -m rag_poc.evaluate pageindex --rejudge   # 保存済みの回答を採点し直す
 uv run python -m rag_poc.compare              # 各方式の集計値を Markdown の表で出す
 uv run python -m rag_poc.scale                # 資料を増やしたときの検索の時間・料金を測る(data/extra/ に追加資料が要る)
+uv run python -m rag_poc.evalgold             # 追加の 8 冊にも答えがあるページを正解に補う → data/eval/alt_evidence_11.json
+RAG_CORPUS=11 uv run python -m rag_poc.retrieval_eval vector_jev   # 11 冊で検索だけを流し、正解ページの取得を測る(RAG_CORPUS なしなら 3 冊)
+uv run python -m rag_poc.retrieval_eval --table   # 3 冊と 11 冊の検索の結果を表にする
 ```
 
 質問は 1 問ずつ順に実行する。回答の正しさは Claude Opus 5.5 が正解・正解の根拠ページの本文と比べて correct / partial / incorrect で採点し、答えのない質問は「記載がない」と答えれば correct とする。採点は 2 回行い、判定が食い違った問題は低いほうを採って `needs_review` を付ける(人が見る対象)。あわせて、正解の根拠ページを検索で取得できたか・回答の根拠に挙げたか、処理時間、トークン数、料金を記録する。
