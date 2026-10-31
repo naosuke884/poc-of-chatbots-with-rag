@@ -122,6 +122,8 @@ RAG_CORPUS=feat uv run python -m rag_poc.evaluate vector_jev   # その評価セ
 uv run python -m rag_poc.allganize   # Allganize RAG-Evaluation-Dataset-JA を資料と評価セットの形にする(data/allganize/ に CSV と PDF を置いてから)
 RAG_CORPUS=ag_finance uv run python -m rag_poc.evaluate vector_jev   # 業種ごとに測る(finance / it / manufacturing / public / retail)
 uv run python -m rag_poc.compare --ag   # 5 業種の結果を合わせて表にする
+RAG_CORPUS=ag_finance uv run python -m rag_poc.ocr   # 図・画像のあるページを Haiku で文字に起こす → data/ocr/<資料>.json
+RAG_OCR=1 RAG_CORPUS=ag_finance uv run python -m rag_poc.evaluate vector_jev   # 文字起こしを本文に足して測る(索引も RAG_OCR=1 で作り直す)
 uv run python -m rag_poc.retrieval_eval --table   # 3 冊と 11 冊の検索の結果を表にする
 ```
 

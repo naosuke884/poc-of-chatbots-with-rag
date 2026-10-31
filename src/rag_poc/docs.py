@@ -75,6 +75,9 @@ CORPORA = {"3": DOCS, "11": DOCS + EXTRA_DOCS, "feat": FEAT_DOCS, **{f"ag_{domai
 CORPUS = os.environ.get("RAG_CORPUS") if os.environ.get("RAG_CORPUS") in CORPORA else "3"
 CORPUS_DOCS = CORPORA[CORPUS]
 
+# RAG_OCR=1 なら、図・画像の内容を書き出した前処理(rag_poc.ocr)を使う。索引と計測結果は別の場所に置く
+OCR = os.environ.get("RAG_OCR") == "1"
+
 
 def extract_pages(doc: Doc) -> list[str]:
     """資料の各ページのテキストを、物理ページ順に返す。"""
@@ -82,16 +85,27 @@ def extract_pages(doc: Doc) -> list[str]:
         return [page.get_text().replace("\x00", "") for page in pdf]  # NUL を含む PDF がある(DB に入れられない)
 
 
+def ocr_path(doc_id: str) -> Path:
+    return DATA_DIR / "ocr" / f"{doc_id}.json"
+
+
 def clean_pages(doc: Doc) -> list[str]:
-    """チャンク分割と索引作成に使う、余白の章見出しを除いたページごとのテキストを返す。"""
+    """チャンク分割と索引作成に使う、余白の章見出しを除いたページごとのテキストを返す。
+
+    RAG_OCR=1 のときは、rag_poc.ocr で書き出した図・画像の内容をページの後ろに足す。
+    """
     if not doc.side_margin:
-        return extract_pages(doc)
-    pages = []
-    with pymupdf.open(doc.path) as pdf:
-        for page in pdf:
-            left, right = doc.side_margin, page.rect.width - doc.side_margin
-            blocks = [b for b in page.get_text("blocks") if left < b[2] and b[0] < right]
-            pages.append("".join(b[4] for b in blocks).replace("\x00", ""))
+        pages = extract_pages(doc)
+    else:
+        pages = []
+        with pymupdf.open(doc.path) as pdf:
+            for page in pdf:
+                left, right = doc.side_margin, page.rect.width - doc.side_margin
+                blocks = [b for b in page.get_text("blocks") if left < b[2] and b[0] < right]
+                pages.append("".join(b[4] for b in blocks).replace("\x00", ""))
+    if OCR and ocr_path(doc.id).exists():
+        figures = json.loads(ocr_path(doc.id).read_text(encoding="utf-8"))
+        pages = [f"{t}\n【図・画像の内容】\n{figures[str(i)]}" if figures.get(str(i)) else t for i, t in enumerate(pages, start=1)]
     return pages
 
 

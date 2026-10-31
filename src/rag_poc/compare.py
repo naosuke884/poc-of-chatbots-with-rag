@@ -10,7 +10,7 @@
 import argparse
 import json
 
-from rag_poc.docs import AG_DOCS, DATA_DIR, DOCS_BY_ID
+from rag_poc.docs import AG_DOCS, DATA_DIR, DOCS_BY_ID, OCR
 from rag_poc.evaluate import RESULTS_DIR, summarize
 from rag_poc.methods import METHODS
 from rag_poc.pageindex_build import tree_path
@@ -32,7 +32,7 @@ def load_ag(method: str, indexed_only: bool = True) -> dict | None:
     """
     rows = []
     for domain in AG_DOCS:
-        path = DATA_DIR / "eval" / f"ag_{domain}" / "results" / f"{method}.json"
+        path = DATA_DIR / "eval" / f"ag_{domain}" / ("results_ocr" if OCR else "results") / f"{method}.json"
         if not path.exists():
             return None
         doc_of = {q["id"]: q["doc"] for q in json.loads((path.parent.parent / "questions.json").read_text(encoding="utf-8"))}

@@ -15,10 +15,10 @@ import litellm
 from pageindex.page_index_classic import page_index_main
 from pageindex.utils import ConfigLoader, count_tokens
 
-from rag_poc.docs import DATA_DIR, DOCS, DOCS_BY_ID, clean_pages
+from rag_poc.docs import DATA_DIR, DOCS, DOCS_BY_ID, OCR, clean_pages
 from rag_poc.llm import INDEX_MODEL, Usage
 
-INDEX_DIR = DATA_DIR / "index" / "pageindex"
+INDEX_DIR = DATA_DIR / "index" / ("pageindex_ocr" if OCR else "pageindex")
 
 
 def tree_path(doc_id: str):

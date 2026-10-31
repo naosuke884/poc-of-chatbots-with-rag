@@ -22,11 +22,13 @@ from typing import Literal
 from pydantic import BaseModel
 
 from rag_poc import evalset
-from rag_poc.docs import CORPUS, DATA_DIR, DOCS_BY_ID, clean_pages
+from rag_poc.docs import CORPUS, DATA_DIR, DOCS_BY_ID, OCR, clean_pages
 from rag_poc.llm import JUDGE_MODEL, Usage, anthropic_client
 from rag_poc.methods import METHODS, pipeline
 
 RESULTS_DIR = DATA_DIR / "eval" / ("results" if CORPUS in ("3", "11") else f"{CORPUS}/results")
+if OCR:
+    RESULTS_DIR = RESULTS_DIR.with_name(RESULTS_DIR.name + "_ocr")
 SCORES = {"correct": 1.0, "partial": 0.5, "incorrect": 0.0}
 JUDGE_RUNS = 2
 

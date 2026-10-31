@@ -15,7 +15,7 @@ import time
 import psycopg
 from pgvector.psycopg import register_vector
 
-from rag_poc.docs import CORPUS, CORPUS_DOCS, DATA_DIR, DOCS, Doc, clean_pages
+from rag_poc.docs import CORPUS, CORPUS_DOCS, DATA_DIR, DOCS, OCR, Doc, clean_pages
 from rag_poc.llm import EMBED_MODEL, Usage, openai_client
 
 CHUNK_CHARS = 600
@@ -25,8 +25,8 @@ EMBED_BATCH = 64
 # ページ番号だけのページなど、これより短いチャンクは登録しない
 MIN_CHARS = 30
 # 11 冊のときは別のテーブル・統計ファイルにする
-CHUNKS_TABLE = "chunks" if CORPUS == "3" else f"chunks_{CORPUS}"
-STATS_PATH = DATA_DIR / "index" / ("vector_build.json" if CORPUS == "3" else f"vector_build_{CORPUS}.json")
+CHUNKS_TABLE = ("chunks" if CORPUS == "3" else f"chunks_{CORPUS}") + ("_ocr" if OCR else "")
+STATS_PATH = DATA_DIR / "index" / (("vector_build" if CORPUS == "3" else f"vector_build_{CORPUS}") + ("_ocr" if OCR else "") + ".json")
 
 SCHEMA = """
 CREATE EXTENSION IF NOT EXISTS vector;
