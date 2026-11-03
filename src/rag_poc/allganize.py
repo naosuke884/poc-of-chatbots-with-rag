@@ -4,7 +4,7 @@ data/allganize/ に documents.csv・rag_evaluation_result.csv と、documents.cs
 PDF が開けないもの・ページ数が documents.csv と違うもの(版が違うおそれがある)は除き、その資料が正解の問題も除く。
 
 - data/allganize/docs.json: 使う資料(業種・id・題名)。docs.AG_DOCS がこれを読む
-- data/eval/ag_<業種>/questions.json: 業種ごとの評価セット。type は正解の箇所の種類(paragraph・table・image)
+- data/eval/ag_<業種>/questions.json: 業種ごとの評価セット。type は正解の箇所の種類(paragraph・table・image)。ag_all は 5 業種をまとめたもの
 
     uv run python -m rag_poc.allganize
 """
@@ -59,8 +59,8 @@ def main() -> None:
                 "evidence": [{"doc": doc_id, "page": int(p)} for p in q["target_page_no"].replace(" ", "").split(",") if p],
             }
         )
-    for domain, qs in questions.items():
-        path = DATA_DIR / "eval" / f"ag_{domain}" / "questions.json"
+    for name, qs in [*questions.items(), ("all", [q for qs in questions.values() for q in qs])]:
+        path = DATA_DIR / "eval" / f"ag_{name}" / "questions.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(qs, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"資料 {len(docs)} / {len(rows)} 件({dict(Counter(d['domain'] for d in docs))})")

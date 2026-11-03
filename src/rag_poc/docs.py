@@ -69,9 +69,15 @@ DOCS_BY_ID = {d.id: d for d in DOCS + EXTRA_DOCS + FEAT_DOCS + [d for docs in AG
 # - なし: 評価セットの 3 冊
 # - "11": EXTRA_DOCS も含めた 11 冊
 # - "feat": FEAT_DOCS
-# - "ag_<業種>": Allganize のデータセットのその業種の資料
+# - "ag_<業種>": Allganize のデータセットのその業種の資料。"ag_all" は 5 業種をまとめたもの
 # 3 冊・11 冊以外の評価セットと結果は data/eval/<RAG_CORPUS>/ に置く
-CORPORA = {"3": DOCS, "11": DOCS + EXTRA_DOCS, "feat": FEAT_DOCS, **{f"ag_{domain}": docs for domain, docs in AG_DOCS.items()}}
+CORPORA = {
+    "3": DOCS,
+    "11": DOCS + EXTRA_DOCS,
+    "feat": FEAT_DOCS,
+    **{f"ag_{domain}": docs for domain, docs in AG_DOCS.items()},
+    "ag_all": [d for docs in AG_DOCS.values() for d in docs],  # 5 業種をまとめたもの
+}
 CORPUS = os.environ.get("RAG_CORPUS") if os.environ.get("RAG_CORPUS") in CORPORA else "3"
 CORPUS_DOCS = CORPORA[CORPUS]
 

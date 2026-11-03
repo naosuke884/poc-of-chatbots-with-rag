@@ -16,14 +16,14 @@ import time
 
 from rag_poc import evalgen_extra, evalgold, evalset
 from rag_poc.answer import unique_pages
-from rag_poc.docs import CORPUS, DATA_DIR
+from rag_poc.docs import CORPUS, DATA_DIR, OCR
 from rag_poc.evaluate import page_recall
 from rag_poc.llm import Usage
 from rag_poc.methods import METHODS, retriever
 
 
-def results_dir(corpus: str):
-    return DATA_DIR / "eval" / f"retrieval_{corpus}"
+def results_dir(corpus: str, ocr: bool = OCR):
+    return DATA_DIR / "eval" / f"retrieval_{corpus}{'_ocr' if ocr else ''}"
 
 
 def questions(extra: bool = False) -> tuple[list[dict], dict]:
@@ -35,11 +35,14 @@ def questions(extra: bool = False) -> tuple[list[dict], dict]:
     return qs, alt
 
 
-def run(method: str, extra: bool = False) -> dict:
+def run(method: str, extra: bool = False, sample: int = 0) -> dict:
+    """sample を渡すと、問題を等間隔に sample 問だけ選んで流す(料金の大きい方式を一部の問題で測るため)。"""
     if extra and CORPUS != "11":
         raise ValueError("--extra は RAG_CORPUS=11 で使う")
     retrieve = retriever(method)
     qs, alt = questions(extra)
+    if sample:
+        qs = qs[:: max(1, len(qs) // sample)][:sample]
     rows = []
     for q in qs:
         usage = Usage()
@@ -71,7 +74,7 @@ def run(method: str, extra: bool = False) -> dict:
     }
     out = results_dir(CORPUS)
     out.mkdir(parents=True, exist_ok=True)
-    (out / f"{method}{'_extra' if extra else ''}.json").write_text(json.dumps({"method": method, "summary": summary, "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / f"{method}{'_extra' if extra else ''}{f'_sample{sample}' if sample else ''}.json").write_text(json.dumps({"method": method, "summary": summary, "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
 
 
@@ -104,12 +107,13 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("method", nargs="?", choices=list(METHODS))
     parser.add_argument("--extra", action="store_true", help="追加の 8 冊から作った問題を流す")
+    parser.add_argument("--sample", type=int, default=0, help="問題を等間隔に N 問だけ選んで流す")
     parser.add_argument("--table", action="store_true", help="3 冊と 11 冊の結果を表にする")
     args = parser.parse_args()
     if args.table:
         print(table())
     else:
-        print(json.dumps(run(args.method, args.extra), ensure_ascii=False, indent=2))
+        print(json.dumps(run(args.method, args.extra, args.sample), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
